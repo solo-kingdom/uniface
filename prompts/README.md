@@ -1,21 +1,21 @@
-# Prompts Directory
+# Prompts 目录
 
-This directory contains all prompts used for the uniface project, organized by category.
+此目录包含用于 uniface 项目的所有提示词，按类别组织。
 
-## Structure
+## 结构
 
-- `architecture/` - Prompts related to system architecture, design patterns, and high-level decisions
-- `features/` - Prompts for implementing specific features and functionality
-- `tasks/` - Prompts for specific development tasks, bug fixes, or refactoring
+- `architecture/` - 与系统架构、设计模式和高层决策相关的提示词
+- `features/` - 用于实现特定功能和特性的提示词
+- `tasks/` - 用于特定开发任务、错误修复或重构的提示词
 
-## Usage
+## 使用
 
-Each prompt file should be clearly named and include:
-- A description of what the prompt accomplishes
-- The context and requirements
-- Any dependencies or assumptions
+每个提示词文件应具有清晰的名称并包括：
+- 提示词完成内容的描述
+- 上下文和需求
+- 任何依赖项或假设
 
-This separation allows for:
-- Easy reuse of prompts across development sessions
-- Version control of prompts alongside code
-- Clear documentation of AI-assisted development decisions
+这种分离允许：
+- 在不同开发会话中轻松重用提示词
+- 提示词与代码一起进行版本控制
+- 清晰记录 AI 辅助开发决策

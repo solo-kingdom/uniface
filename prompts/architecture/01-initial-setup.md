@@ -1,66 +1,34 @@
-# Initial Setup and Architecture
+# 初始设置和架构
 
-## Context
-This prompt defines the initial architecture and setup for the Unify Interface project.
+## 上下文
+此 prompt 定义了 Unify Interface 项目的初始架构和设置。
 
-## Requirements
+## 需求
 
-### Project Goals
-- Create a unified interface system that can consolidate multiple API/SDK interfaces
-- Provide a consistent, type-safe interface layer
-- Support easy integration of new interface types
-- Enable efficient code generation and interface management
+### 项目目标
+- 创建统一的接口系统，可以整合多个 API/SDK 接口
+- 提供一致的、类型安全的接口层
+- 支持轻松集成新的接口类型
+- 实现高效的代码生成和接口管理
 
-### Architecture Principles
-1. **Modularity**: Each component should be independently testable and maintainable
-2. **Type Safety**: Leverage Go's strong typing for interface definitions
-3. **Extensibility**: Design patterns that allow easy addition of new interface types
-4. **Performance**: Minimal overhead for interface operations
+### 架构原则
+1. **模块化**：每个组件应可独立测试和维护
+2. **类型安全**：利用 Go 的强类型特性定义接口
+3. **可扩展性**：设计模式允许轻松添加新的接口类型
+4. **性能**：接口操作的最小开销
 
-### Core Components
+### 核心组件
 
-#### 1. Interface Definition Layer
-- Location: `internal/core/interface.go`
-- Define base interfaces and types
-- Support for method signatures, parameters, and return types
-
-#### 2. Registry System
-- Location: `internal/core/registry.go`
-- Register and manage interface definitions
-- Support for interface discovery and lookup
-
-#### 3. Generator System
-- Location: `internal/core/generator.go`
-- Generate Go code from interface definitions
-- Support for various output formats and templates
-
-#### 4. Validation System
-- Location: `internal/core/validator.go`
-- Validate interface definitions
-- Check for type consistency and method compatibility
-
-### Directory Structure Reference
+### 目录结构参考
 ```
 uniface/
-├── cmd/uniface/          # CLI application
+├── cmd/uniface/          # CLI 应用程序
 ├── internal/
-│   ├── core/            # Core business logic
-│   ├── parser/          # Parse interface definitions
-│   └── generator/       # Code generation
-├── pkg/                 # Public APIs
-├── prompts/             # AI prompts (this file)
-├── docs/                # Documentation
-└── test/                # Test files
+├── pkg/                 # 公共 API
+├── prompts/             # AI 提示词（本文件）
+├── docs/                # 文档
+└── test/                # 测试文件
 ```
 
-## Dependencies
-- Go 1.21 or higher
-- Standard library packages
-- Consider adding: go/parser for parsing Go code
-
-## Next Steps
-1. Implement the core interface types
-2. Create the registry system
-3. Build the basic CLI commands
-4. Add comprehensive tests
-5. Write documentation
+## 依赖项
+- Go 1.24 或更高版本
