@@ -14,3 +14,4 @@ Unify Interface
   1. 优先读取项目结构
   2. 读取 docs/AI_CODING_RULES.md 的详细说明
   3. 读取 prompts 目录及需要的内容，但不要修改
+  4. 只写必要文档，避免过度生成，使用中文
