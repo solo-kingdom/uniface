@@ -55,11 +55,9 @@ func New(opts ...Option) (*Storage, error) {
 }
 
 // NewWithClient creates a new Redis storage instance with an existing client.
-// This is useful when you want to share a Redis connection across multiple storage instances.
 func NewWithClient(client *redis.Client, opts ...Option) (*Storage, error) {
 	config := NewConfig(opts...)
 
-	// Test connection
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
@@ -78,13 +76,11 @@ func NewWithClient(client *redis.Client, opts ...Option) (*Storage, error) {
 func (s *Storage) buildKey(key string, opts *kv.Options) string {
 	var sb strings.Builder
 
-	// Add global prefix first
 	if s.keyPrefix != "" {
 		sb.WriteString(s.keyPrefix)
 		sb.WriteString(":")
 	}
 
-	// Add namespace from options
 	if opts != nil && opts.Namespace != "" {
 		sb.WriteString(opts.Namespace)
 		sb.WriteString(":")
@@ -110,13 +106,11 @@ func (s *Storage) Set(ctx context.Context, key string, value interface{}, opts .
 	options := kv.MergeOptions(opts...)
 	finalKey := s.buildKey(key, options)
 
-	// Serialize value to JSON
 	data, err := json.Marshal(value)
 	if err != nil {
 		return kv.NewStorageError("set", key, err)
 	}
 
-	// Check NoOverwrite option
 	if options.NoOverwrite {
 		exists, err := s.client.Exists(ctx, finalKey).Result()
 		if err != nil {
@@ -127,7 +121,6 @@ func (s *Storage) Set(ctx context.Context, key string, value interface{}, opts .
 		}
 	}
 
-	// Set with optional TTL
 	if options.TTL > 0 {
 		err = s.client.Set(ctx, finalKey, data, options.TTL).Err()
 	} else {
@@ -142,7 +135,7 @@ func (s *Storage) Set(ctx context.Context, key string, value interface{}, opts .
 }
 
 // Get retrieves the value associated with the given key.
-func (s *Storage) Get(ctx context.Context, key string, value interface{}) error {
+func (s *Storage) Get(ctx context.Context, key string, value interface{}, opts ...kv.Option) error {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
@@ -154,7 +147,8 @@ func (s *Storage) Get(ctx context.Context, key string, value interface{}) error 
 		return kv.NewStorageError("get", key, kv.ErrInvalidKey)
 	}
 
-	finalKey := s.buildKey(key, nil)
+	options := kv.MergeOptions(opts...)
+	finalKey := s.buildKey(key, options)
 
 	data, err := s.client.Get(ctx, finalKey).Bytes()
 	if err != nil {
@@ -172,7 +166,7 @@ func (s *Storage) Get(ctx context.Context, key string, value interface{}) error 
 }
 
 // Delete removes the key-value pair associated with the given key.
-func (s *Storage) Delete(ctx context.Context, key string) error {
+func (s *Storage) Delete(ctx context.Context, key string, opts ...kv.Option) error {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
@@ -184,7 +178,8 @@ func (s *Storage) Delete(ctx context.Context, key string) error {
 		return kv.NewStorageError("delete", key, kv.ErrInvalidKey)
 	}
 
-	finalKey := s.buildKey(key, nil)
+	options := kv.MergeOptions(opts...)
+	finalKey := s.buildKey(key, options)
 
 	if err := s.client.Del(ctx, finalKey).Err(); err != nil {
 		return kv.NewStorageError("delete", key, err)
@@ -208,7 +203,6 @@ func (s *Storage) BatchSet(ctx context.Context, items map[string]interface{}, op
 
 	options := kv.MergeOptions(opts...)
 
-	// Use transaction for atomic batch set
 	_, err := s.client.TxPipelined(ctx, func(pipe redis.Pipeliner) error {
 		for key, value := range items {
 			if key == "" {
@@ -222,7 +216,6 @@ func (s *Storage) BatchSet(ctx context.Context, items map[string]interface{}, op
 				return err
 			}
 
-			// Check NoOverwrite option
 			if options.NoOverwrite {
 				exists, err := s.client.Exists(ctx, finalKey).Result()
 				if err != nil {
@@ -250,7 +243,7 @@ func (s *Storage) BatchSet(ctx context.Context, items map[string]interface{}, op
 }
 
 // BatchGet retrieves values for multiple keys.
-func (s *Storage) BatchGet(ctx context.Context, keys []string) (map[string]interface{}, error) {
+func (s *Storage) BatchGet(ctx context.Context, keys []string, opts ...kv.Option) (map[string]interface{}, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
@@ -262,20 +255,20 @@ func (s *Storage) BatchGet(ctx context.Context, keys []string) (map[string]inter
 		return make(map[string]interface{}), nil
 	}
 
-	// Build final keys
+	options := kv.MergeOptions(opts...)
+
 	finalKeys := make([]string, len(keys))
-	keyMap := make(map[string]string) // maps final key to original key
+	keyMap := make(map[string]string)
 
 	for i, key := range keys {
 		if key == "" {
 			return nil, kv.NewStorageError("batch_get", key, kv.ErrInvalidKey)
 		}
-		finalKey := s.buildKey(key, nil)
+		finalKey := s.buildKey(key, options)
 		finalKeys[i] = finalKey
 		keyMap[finalKey] = key
 	}
 
-	// Use MGET for batch retrieval
 	results, err := s.client.MGet(ctx, finalKeys...).Result()
 	if err != nil {
 		return nil, kv.NewStorageError("batch_get", "", err)
@@ -284,14 +277,13 @@ func (s *Storage) BatchGet(ctx context.Context, keys []string) (map[string]inter
 	output := make(map[string]interface{})
 	for i, result := range results {
 		if result == nil {
-			continue // Skip missing keys
+			continue
 		}
 
 		var value interface{}
 		switch v := result.(type) {
 		case string:
 			if err := json.Unmarshal([]byte(v), &value); err != nil {
-				// If JSON unmarshal fails, store as raw string
 				value = v
 			}
 		default:
@@ -306,7 +298,7 @@ func (s *Storage) BatchGet(ctx context.Context, keys []string) (map[string]inter
 }
 
 // BatchDelete removes multiple key-value pairs atomically.
-func (s *Storage) BatchDelete(ctx context.Context, keys []string) error {
+func (s *Storage) BatchDelete(ctx context.Context, keys []string, opts ...kv.Option) error {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
@@ -318,12 +310,13 @@ func (s *Storage) BatchDelete(ctx context.Context, keys []string) error {
 		return nil
 	}
 
+	options := kv.MergeOptions(opts...)
 	finalKeys := make([]string, len(keys))
 	for i, key := range keys {
 		if key == "" {
 			return kv.NewStorageError("batch_delete", key, kv.ErrInvalidKey)
 		}
-		finalKeys[i] = s.buildKey(key, nil)
+		finalKeys[i] = s.buildKey(key, options)
 	}
 
 	if err := s.client.Del(ctx, finalKeys...).Err(); err != nil {
@@ -334,7 +327,7 @@ func (s *Storage) BatchDelete(ctx context.Context, keys []string) error {
 }
 
 // Exists checks if a key exists in the storage.
-func (s *Storage) Exists(ctx context.Context, key string) (bool, error) {
+func (s *Storage) Exists(ctx context.Context, key string, opts ...kv.Option) (bool, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
@@ -346,7 +339,8 @@ func (s *Storage) Exists(ctx context.Context, key string) (bool, error) {
 		return false, kv.NewStorageError("exists", key, kv.ErrInvalidKey)
 	}
 
-	finalKey := s.buildKey(key, nil)
+	options := kv.MergeOptions(opts...)
+	finalKey := s.buildKey(key, options)
 
 	count, err := s.client.Exists(ctx, finalKey).Result()
 	if err != nil {
@@ -354,6 +348,52 @@ func (s *Storage) Exists(ctx context.Context, key string) (bool, error) {
 	}
 
 	return count > 0, nil
+}
+
+// List returns all keys matching the given options.
+func (s *Storage) List(ctx context.Context, opts ...kv.Option) ([]string, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	if s.closed {
+		return nil, kv.NewStorageError("list", "", kv.ErrStorageClosed)
+	}
+
+	options := kv.MergeOptions(opts...)
+	pattern := s.buildKey("*", options)
+
+	var keys []string
+	var cursor uint64
+	for {
+		var batch []string
+		var err error
+		batch, cursor, err = s.client.Scan(ctx, cursor, pattern, 100).Result()
+		if err != nil {
+			return nil, kv.NewStorageError("list", "", err)
+		}
+
+		// Strip prefix to get raw key
+		prefixLen := 0
+		if s.keyPrefix != "" {
+			prefixLen += len(s.keyPrefix) + 1
+		}
+		if options.Namespace != "" {
+			prefixLen += len(options.Namespace) + 1
+		}
+
+		for _, k := range batch {
+			if prefixLen > 0 && len(k) > prefixLen {
+				keys = append(keys, k[prefixLen:])
+			} else {
+				keys = append(keys, k)
+			}
+		}
+
+		if cursor == 0 {
+			break
+		}
+	}
+	return keys, nil
 }
 
 // Close closes the storage and releases any held resources.
@@ -377,7 +417,6 @@ func (s *Storage) Close() error {
 }
 
 // Client returns the underlying Redis client for advanced operations.
-// Use with caution as direct client usage may bypass the storage abstraction.
 func (s *Storage) Client() *redis.Client {
 	return s.client
 }

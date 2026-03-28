@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strings"
 	"testing"
 	"time"
 )
@@ -25,6 +26,15 @@ func newMockStore() *mockStore {
 	}
 }
 
+// resolveKey applies namespace prefix to the key
+func (m *mockStore) resolveKey(key string, opts ...Option) string {
+	options := DefaultOptions().Apply(opts...)
+	if options.Namespace != "" {
+		return options.Namespace + ":" + key
+	}
+	return key
+}
+
 func (m *mockStore) Set(ctx context.Context, key string, value interface{}, opts ...Option) error {
 	if m.closed {
 		return ErrStorageClosed
@@ -36,25 +46,18 @@ func (m *mockStore) Set(ctx context.Context, key string, value interface{}, opts
 		return ErrInvalidValue
 	}
 
-	// 处理选项
 	options := DefaultOptions().Apply(opts...)
 
-	// 检查 NoOverwrite 选项
 	if options.NoOverwrite {
-		if _, exists := m.data[key]; exists {
+		fullKey := m.resolveKey(key, opts...)
+		if _, exists := m.data[fullKey]; exists {
 			return ErrKeyAlreadyExists
 		}
 	}
 
-	// 应用命名空间
-	fullKey := key
-	if options.Namespace != "" {
-		fullKey = options.Namespace + ":" + key
-	}
-
+	fullKey := m.resolveKey(key, opts...)
 	m.data[fullKey] = value
 
-	// 处理 TTL 选项
 	if options.TTL > 0 {
 		m.ttlData[fullKey] = time.Now().Add(options.TTL)
 	}
@@ -62,7 +65,7 @@ func (m *mockStore) Set(ctx context.Context, key string, value interface{}, opts
 	return nil
 }
 
-func (m *mockStore) Get(ctx context.Context, key string, value interface{}) error {
+func (m *mockStore) Get(ctx context.Context, key string, value interface{}, opts ...Option) error {
 	if m.closed {
 		return ErrStorageClosed
 	}
@@ -70,26 +73,26 @@ func (m *mockStore) Get(ctx context.Context, key string, value interface{}) erro
 		return ErrInvalidKey
 	}
 
+	fullKey := m.resolveKey(key, opts...)
+
 	// 检查 TTL
-	if exp, exists := m.ttlData[key]; exists {
+	if exp, exists := m.ttlData[fullKey]; exists {
 		if time.Now().After(exp) {
-			delete(m.data, key)
-			delete(m.ttlData, key)
+			delete(m.data, fullKey)
+			delete(m.ttlData, fullKey)
 			return ErrKeyNotFound
 		}
 	}
 
-	storedValue, exists := m.data[key]
+	storedValue, exists := m.data[fullKey]
 	if !exists {
 		return ErrKeyNotFound
 	}
 
-	// 尝试将存储的值解码到输出参数
 	switch v := value.(type) {
 	case *interface{}:
 		*v = storedValue
 	default:
-		// 使用 JSON 编解码
 		data, err := json.Marshal(storedValue)
 		if err != nil {
 			return fmt.Errorf("failed to encode value: %w", err)
@@ -102,7 +105,7 @@ func (m *mockStore) Get(ctx context.Context, key string, value interface{}) erro
 	return nil
 }
 
-func (m *mockStore) Delete(ctx context.Context, key string) error {
+func (m *mockStore) Delete(ctx context.Context, key string, opts ...Option) error {
 	if m.closed {
 		return ErrStorageClosed
 	}
@@ -110,8 +113,9 @@ func (m *mockStore) Delete(ctx context.Context, key string) error {
 		return ErrInvalidKey
 	}
 
-	delete(m.data, key)
-	delete(m.ttlData, key)
+	fullKey := m.resolveKey(key, opts...)
+	delete(m.data, fullKey)
+	delete(m.ttlData, fullKey)
 	return nil
 }
 
@@ -128,7 +132,7 @@ func (m *mockStore) BatchSet(ctx context.Context, items map[string]interface{}, 
 	return nil
 }
 
-func (m *mockStore) BatchGet(ctx context.Context, keys []string) (map[string]interface{}, error) {
+func (m *mockStore) BatchGet(ctx context.Context, keys []string, opts ...Option) (map[string]interface{}, error) {
 	if m.closed {
 		return nil, ErrStorageClosed
 	}
@@ -136,7 +140,7 @@ func (m *mockStore) BatchGet(ctx context.Context, keys []string) (map[string]int
 	result := make(map[string]interface{})
 	for _, key := range keys {
 		var value interface{}
-		if err := m.Get(ctx, key, &value); err != nil {
+		if err := m.Get(ctx, key, &value, opts...); err != nil {
 			if !errors.Is(err, ErrKeyNotFound) {
 				return nil, err
 			}
@@ -147,20 +151,20 @@ func (m *mockStore) BatchGet(ctx context.Context, keys []string) (map[string]int
 	return result, nil
 }
 
-func (m *mockStore) BatchDelete(ctx context.Context, keys []string) error {
+func (m *mockStore) BatchDelete(ctx context.Context, keys []string, opts ...Option) error {
 	if m.closed {
 		return ErrStorageClosed
 	}
 
 	for _, key := range keys {
-		if err := m.Delete(ctx, key); err != nil {
+		if err := m.Delete(ctx, key, opts...); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-func (m *mockStore) Exists(ctx context.Context, key string) (bool, error) {
+func (m *mockStore) Exists(ctx context.Context, key string, opts ...Option) (bool, error) {
 	if m.closed {
 		return false, ErrStorageClosed
 	}
@@ -168,17 +172,42 @@ func (m *mockStore) Exists(ctx context.Context, key string) (bool, error) {
 		return false, ErrInvalidKey
 	}
 
-	// 检查 TTL
-	if exp, exists := m.ttlData[key]; exists {
+	fullKey := m.resolveKey(key, opts...)
+
+	if exp, exists := m.ttlData[fullKey]; exists {
 		if time.Now().After(exp) {
-			delete(m.data, key)
-			delete(m.ttlData, key)
+			delete(m.data, fullKey)
+			delete(m.ttlData, fullKey)
 			return false, nil
 		}
 	}
 
-	_, exists := m.data[key]
+	_, exists := m.data[fullKey]
 	return exists, nil
+}
+
+func (m *mockStore) List(ctx context.Context, opts ...Option) ([]string, error) {
+	if m.closed {
+		return nil, ErrStorageClosed
+	}
+
+	options := DefaultOptions().Apply(opts...)
+	prefix := ""
+	if options.Namespace != "" {
+		prefix = options.Namespace + ":"
+	}
+
+	var keys []string
+	for k := range m.data {
+		if prefix == "" || strings.HasPrefix(k, prefix) {
+			key := k
+			if prefix != "" {
+				key = strings.TrimPrefix(k, prefix)
+			}
+			keys = append(keys, key)
+		}
+	}
+	return keys, nil
 }
 
 func (m *mockStore) Close() error {
@@ -290,24 +319,15 @@ func TestStorage_Set(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			store := newMockStore()
 
-			// 测试第一次设置
 			err := store.Set(ctx, tt.key, tt.value, tt.opts...)
 			if !errors.Is(err, tt.wantErr) {
 				t.Errorf("Set() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
 
-			// 如果成功且不是空键，验证值是否正确设置
 			if err == nil && tt.key != "" && tt.wantErr == nil {
-				// 构造完整的键名（考虑命名空间）
-				fullKey := tt.key
-				opts := DefaultOptions().Apply(tt.opts...)
-				if opts.Namespace != "" {
-					fullKey = opts.Namespace + ":" + tt.key
-				}
-
 				var got interface{}
-				if err := store.Get(ctx, fullKey, &got); err != nil {
+				if err := store.Get(ctx, tt.key, &got, tt.opts...); err != nil {
 					t.Errorf("Get() after Set() failed: %v", err)
 					return
 				}
@@ -328,19 +348,16 @@ func TestStorage_Set_NoOverwrite(t *testing.T) {
 
 	key := "no-overwrite-key"
 
-	// 第一次设置应该成功
 	err := store.Set(ctx, key, "first-value", WithNoOverwrite())
 	if err != nil {
 		t.Fatalf("First Set() failed: %v", err)
 	}
 
-	// 第二次设置应该失败
 	err = store.Set(ctx, key, "second-value", WithNoOverwrite())
 	if !errors.Is(err, ErrKeyAlreadyExists) {
 		t.Errorf("Second Set() with NoOverwrite should return ErrKeyAlreadyExists, got: %v", err)
 	}
 
-	// 验证值没有被覆盖
 	var got string
 	err = store.Get(ctx, key, &got)
 	if err != nil {
@@ -456,7 +473,6 @@ func TestStorage_Delete(t *testing.T) {
 				return
 			}
 
-			// 如果成功删除，验证键确实不存在
 			if err == nil && tt.key != "" {
 				var got interface{}
 				err := store.Get(ctx, tt.key, &got)
@@ -520,20 +536,11 @@ func TestStorage_BatchSet(t *testing.T) {
 				return
 			}
 
-			// 如果成功，验证所有键都已设置
 			if err == nil && len(tt.items) > 0 {
-				// 构造命名空间前缀
-				namespace := ""
-				opts := DefaultOptions().Apply(tt.opts...)
-				if opts.Namespace != "" {
-					namespace = opts.Namespace + ":"
-				}
-
 				for key, expectedValue := range tt.items {
-					fullKey := namespace + key
 					var got interface{}
-					if err := store.Get(ctx, fullKey, &got); err != nil {
-						t.Errorf("BatchSet() failed to get key %s: %v", fullKey, err)
+					if err := store.Get(ctx, key, &got, tt.opts...); err != nil {
+						t.Errorf("BatchSet() failed to get key %s: %v", key, err)
 						continue
 					}
 
@@ -656,7 +663,6 @@ func TestStorage_BatchDelete(t *testing.T) {
 				return
 			}
 
-			// 验证键已被删除
 			if err == nil {
 				for _, key := range tt.keys {
 					if key == "" {
@@ -725,7 +731,6 @@ func TestStorage_TTL(t *testing.T) {
 	ctx := context.Background()
 	store := newMockStore()
 
-	// 设置一个短 TTL 的键
 	key := "expiring-key"
 	value := "value"
 	err := store.Set(ctx, key, value, WithTTL(10*time.Millisecond))
@@ -733,7 +738,6 @@ func TestStorage_TTL(t *testing.T) {
 		t.Fatalf("Set() with TTL failed: %v", err)
 	}
 
-	// 立即获取应该成功
 	var got string
 	err = store.Get(ctx, key, &got)
 	if err != nil {
@@ -743,16 +747,13 @@ func TestStorage_TTL(t *testing.T) {
 		t.Errorf("Get() value = %s, want %s", got, value)
 	}
 
-	// 等待 TTL 过期
 	time.Sleep(15 * time.Millisecond)
 
-	// 再次获取应该失败
 	err = store.Get(ctx, key, &got)
 	if !errors.Is(err, ErrKeyNotFound) {
 		t.Errorf("Get() after TTL expired should return ErrKeyNotFound, got: %v", err)
 	}
 
-	// Exists 也应该返回 false
 	exists, err := store.Exists(ctx, key)
 	if err != nil {
 		t.Errorf("Exists() after TTL expired failed: %v", err)
@@ -766,19 +767,16 @@ func TestStorage_Close(t *testing.T) {
 	ctx := context.Background()
 	store := newMockStore()
 
-	// 正常操作
 	err := store.Set(ctx, "key1", "value1")
 	if err != nil {
 		t.Fatalf("Set() before Close() failed: %v", err)
 	}
 
-	// 关闭存储
 	err = store.Close()
 	if err != nil {
 		t.Fatalf("Close() failed: %v", err)
 	}
 
-	// 关闭后操作应该返回 ErrStorageClosed
 	err = store.Set(ctx, "key2", "value2")
 	if !errors.Is(err, ErrStorageClosed) {
 		t.Errorf("Set() after Close() should return ErrStorageClosed, got: %v", err)
@@ -814,6 +812,11 @@ func TestStorage_Close(t *testing.T) {
 	if !errors.Is(err, ErrStorageClosed) {
 		t.Errorf("BatchDelete() after Close() should return ErrStorageClosed, got: %v", err)
 	}
+
+	_, err = store.List(ctx)
+	if !errors.Is(err, ErrStorageClosed) {
+		t.Errorf("List() after Close() should return ErrStorageClosed, got: %v", err)
+	}
 }
 
 func TestOption_WithTTL(t *testing.T) {
@@ -838,7 +841,7 @@ func TestOption_WithTTL(t *testing.T) {
 		{
 			name:    "负 TTL",
 			ttl:     -1,
-			wantErr: false, // 负 TTL 被视为零
+			wantErr: false,
 		},
 	}
 
@@ -847,14 +850,12 @@ func TestOption_WithTTL(t *testing.T) {
 			key := "test-ttl"
 			value := "test-value"
 
-			// 设置带 TTL 的键
 			err := store.Set(ctx, key, value, WithTTL(tt.ttl))
 			if (err != nil) != tt.wantErr {
 				t.Errorf("Set() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
 
-			// 验证键可以立即获取（除非 TTL 为负且立即过期）
 			if tt.ttl >= 0 {
 				var got string
 				err := store.Get(ctx, key, &got)
@@ -874,7 +875,6 @@ func TestOption_WithNamespace(t *testing.T) {
 	ctx := context.Background()
 	store := newMockStore()
 
-	// 在命名空间中设置键
 	key := "test-key"
 	value := "test-value"
 	namespace := "mynamespace"
@@ -884,21 +884,59 @@ func TestOption_WithNamespace(t *testing.T) {
 		t.Fatalf("Set() with namespace failed: %v", err)
 	}
 
-	// 使用命名空间获取
-	fullKey := namespace + ":" + key
+	// 使用命名空间获取应该成功
 	var got string
-	err = store.Get(ctx, fullKey, &got)
+	err = store.Get(ctx, key, &got, WithNamespace(namespace))
 	if err != nil {
-		t.Errorf("Get() with full key failed: %v", err)
+		t.Errorf("Get() with namespace failed: %v", err)
 	}
 	if got != value {
 		t.Errorf("Get() value = %s, want %s", got, value)
 	}
 
-	// 直接获取应该失败
+	// 不带命名空间获取应该失败
 	err = store.Get(ctx, key, &got)
 	if !errors.Is(err, ErrKeyNotFound) {
 		t.Errorf("Get() without namespace should return ErrKeyNotFound, got: %v", err)
+	}
+}
+
+func TestStorage_List(t *testing.T) {
+	ctx := context.Background()
+	store := newMockStore()
+
+	// 设置不同命名空间的键
+	store.Set(ctx, "key1", "value1", WithNamespace("ns1"))
+	store.Set(ctx, "key2", "value2", WithNamespace("ns1"))
+	store.Set(ctx, "key3", "value3", WithNamespace("ns2"))
+	store.Set(ctx, "key4", "value4") // default namespace
+
+	// 列出 ns1 中的键
+	keys, err := store.List(ctx, WithNamespace("ns1"))
+	if err != nil {
+		t.Fatalf("List() failed: %v", err)
+	}
+	if len(keys) != 2 {
+		t.Errorf("List(ns1) returned %d keys, want 2", len(keys))
+	}
+
+	// 列出 ns2 中的键
+	keys, err = store.List(ctx, WithNamespace("ns2"))
+	if err != nil {
+		t.Fatalf("List() failed: %v", err)
+	}
+	if len(keys) != 1 {
+		t.Errorf("List(ns2) returned %d keys, want 1", len(keys))
+	}
+
+	// 列出默认命名空间中的键（没有 namespace 前缀的键）
+	keys, err = store.List(ctx)
+	if err != nil {
+		t.Fatalf("List() failed: %v", err)
+	}
+	// mockStore 中不带 namespace 的 key4 孲储为 "key4"
+	if len(keys) != 1 {
+		t.Errorf("List(default) returned %d keys, want 1", len(keys))
 	}
 }
 
@@ -906,7 +944,7 @@ func BenchmarkStorage_Set(b *testing.B) {
 	ctx := context.Background()
 	store := newMockStore()
 	key := "benchmark-key"
-	value := make([]byte, 1024) // 1KB
+	value := make([]byte, 1024)
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
@@ -918,7 +956,7 @@ func BenchmarkStorage_Get(b *testing.B) {
 	ctx := context.Background()
 	store := newMockStore()
 	key := "benchmark-key"
-	value := make([]byte, 1024) // 1KB
+	value := make([]byte, 1024)
 	store.Set(ctx, key, value)
 
 	var got []byte
