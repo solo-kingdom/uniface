@@ -8,8 +8,8 @@ import (
 	"context"
 	"sync/atomic"
 
-	"github.com/wii/uniface/pkg/rpc/governance/loadbalancer"
-	"github.com/wii/uniface/pkg/rpc/governance/loadbalancer/base"
+	"github.com/solo-kingdom/uniface/pkg/rpc/governance/loadbalancer"
+	"github.com/solo-kingdom/uniface/pkg/rpc/governance/loadbalancer/base"
 )
 
 // RoundRobinBalancer is a round-robin load balancer.

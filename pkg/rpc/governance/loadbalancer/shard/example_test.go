@@ -6,8 +6,8 @@ package shard_test
 import (
 	"fmt"
 
-	"github.com/wii/uniface/pkg/rpc/governance/loadbalancer"
-	"github.com/wii/uniface/pkg/rpc/governance/loadbalancer/shard"
+	"github.com/solo-kingdom/uniface/pkg/rpc/governance/loadbalancer"
+	"github.com/solo-kingdom/uniface/pkg/rpc/governance/loadbalancer/shard"
 )
 
 // Example_basicUsage demonstrates basic shard manager usage.

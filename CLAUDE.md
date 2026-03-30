@@ -5,7 +5,7 @@
 Uniface (Unified Interface) 是一个 Go 基础设施接口层，提供 KV 存储、配置管理、RPC 治理等统一抽象，支持中间件热切换。
 
 - **语言**: Go 1.24，大量使用泛型
-- **模块**: `github.com/wii/uniface`
+- **模块**: `github.com/solo-kingdom/uniface`
 
 ## 项目结构
 

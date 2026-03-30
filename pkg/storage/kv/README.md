@@ -15,7 +15,7 @@
 ## 安装
 
 ```bash
-go get github.com/wii/uniface/pkg/kv
+go get github.com/solo-kingdom/uniface/pkg/kv
 ```
 
 ## 快速开始
@@ -28,7 +28,7 @@ package main
 import (
     "context"
     "fmt"
-    "github.com/wii/uniface/pkg/kv"
+    "github.com/solo-kingdom/uniface/pkg/kv"
 )
 
 func main() {

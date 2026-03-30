@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/wii/uniface/pkg/storage/kv"
+	"github.com/solo-kingdom/uniface/pkg/storage/kv"
 )
 
 // skipIfNoRedis skips the test if Redis is not available.

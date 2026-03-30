@@ -16,7 +16,7 @@
 ## 安装
 
 ```bash
-go get github.com/wii/uniface/pkg/storage/config
+go get github.com/solo-kingdom/uniface/pkg/storage/config
 ```
 
 ## 快速开始
@@ -29,7 +29,7 @@ package main
 import (
     "context"
     "fmt"
-    "github.com/wii/uniface/pkg/storage/config"
+    "github.com/solo-kingdom/uniface/pkg/storage/config"
 )
 
 func main() {

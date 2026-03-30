@@ -48,7 +48,7 @@ config/
 
 ```bash
 # 安装 Consul 子模块
-go get github.com/wii/uniface/pkg/rpc/governance/config/consul
+go get github.com/solo-kingdom/uniface/pkg/rpc/governance/config/consul
 ```
 
 ### 基本使用
@@ -61,8 +61,8 @@ import (
     "log"
     "time"
 
-    "github.com/wii/uniface/pkg/rpc/governance/config"
-    "github.com/wii/uniface/pkg/rpc/governance/config/consul"
+    "github.com/solo-kingdom/uniface/pkg/rpc/governance/config"
+    "github.com/solo-kingdom/uniface/pkg/rpc/governance/config/consul"
 )
 
 func main() {

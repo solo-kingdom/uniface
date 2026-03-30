@@ -1,10 +1,10 @@
-module github.com/wii/uniface/pkg/rpc/governance/config/consul
+module github.com/solo-kingdom/uniface/pkg/rpc/governance/config/consul
 
 go 1.24
 
 require (
 	github.com/hashicorp/consul/api v1.27.0
-	github.com/wii/uniface v0.0.0
+	github.com/solo-kingdom/uniface v0.0.0
 )
 
 require (
@@ -26,4 +26,4 @@ require (
 	golang.org/x/sys v0.19.0 // indirect
 )
 
-replace github.com/wii/uniface => ../../../../../
+replace github.com/solo-kingdom/uniface => ../../../../../

@@ -13,7 +13,7 @@ import (
 	"sync"
 
 	as "github.com/aerospike/aerospike-client-go/v7"
-	"github.com/wii/uniface/pkg/storage/kv"
+	"github.com/solo-kingdom/uniface/pkg/storage/kv"
 )
 
 // ErrBatchNotSupported 批量操作不支持错误

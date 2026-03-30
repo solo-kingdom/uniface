@@ -8,7 +8,7 @@ import (
 	"path/filepath"
 	"sync"
 
-	"github.com/wii/uniface/pkg/storage/kv"
+	"github.com/solo-kingdom/uniface/pkg/storage/kv"
 	bolt "go.etcd.io/bbolt"
 )
 

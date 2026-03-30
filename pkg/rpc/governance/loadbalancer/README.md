@@ -69,7 +69,7 @@ client, err := lb.SelectClient(ctx,
 ### 安装
 
 ```bash
-go get github.com/wii/uniface/pkg/rpc/governance/loadbalancer
+go get github.com/solo-kingdom/uniface/pkg/rpc/governance/loadbalancer
 ```
 
 ### 基础使用
@@ -82,8 +82,8 @@ import (
     "fmt"
     
     "google.golang.org/grpc"
-    "github.com/wii/uniface/pkg/rpc/governance/loadbalancer"
-    "github.com/wii/uniface/pkg/rpc/governance/loadbalancer/implementations/roundrobin"
+    "github.com/solo-kingdom/uniface/pkg/rpc/governance/loadbalancer"
+    "github.com/solo-kingdom/uniface/pkg/rpc/governance/loadbalancer/implementations/roundrobin"
 )
 
 func main() {
@@ -201,8 +201,8 @@ import (
     "fmt"
     
     "google.golang.org/grpc"
-    "github.com/wii/uniface/pkg/rpc/governance/loadbalancer"
-    "github.com/wii/uniface/pkg/rpc/governance/loadbalancer/implementations/random"
+    "github.com/solo-kingdom/uniface/pkg/rpc/governance/loadbalancer"
+    "github.com/solo-kingdom/uniface/pkg/rpc/governance/loadbalancer/implementations/random"
 )
 
 func main() {
@@ -254,8 +254,8 @@ import (
     "fmt"
     
     "google.golang.org/grpc"
-    "github.com/wii/uniface/pkg/rpc/governance/loadbalancer"
-    "github.com/wii/uniface/pkg/rpc/governance/loadbalancer/implementations/weighted"
+    "github.com/solo-kingdom/uniface/pkg/rpc/governance/loadbalancer"
+    "github.com/solo-kingdom/uniface/pkg/rpc/governance/loadbalancer/implementations/weighted"
 )
 
 func main() {
@@ -294,8 +294,8 @@ import (
     "fmt"
     
     "google.golang.org/grpc"
-    "github.com/wii/uniface/pkg/rpc/governance/loadbalancer"
-    "github.com/wii/uniface/pkg/rpc/governance/loadbalancer/implementations/consistenthash"
+    "github.com/solo-kingdom/uniface/pkg/rpc/governance/loadbalancer"
+    "github.com/solo-kingdom/uniface/pkg/rpc/governance/loadbalancer/implementations/consistenthash"
 )
 
 type UserService struct {

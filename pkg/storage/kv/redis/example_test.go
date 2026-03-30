@@ -7,8 +7,8 @@ import (
 	"time"
 
 	goredis "github.com/redis/go-redis/v9"
-	"github.com/wii/uniface/pkg/storage/kv"
-	"github.com/wii/uniface/pkg/storage/kv/redis"
+	"github.com/solo-kingdom/uniface/pkg/storage/kv"
+	"github.com/solo-kingdom/uniface/pkg/storage/kv/redis"
 )
 
 // const redisAddress = "127.0.0.1:6379"

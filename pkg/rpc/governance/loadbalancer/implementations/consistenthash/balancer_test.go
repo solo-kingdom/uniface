@@ -9,7 +9,7 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/wii/uniface/pkg/rpc/governance/loadbalancer"
+	"github.com/solo-kingdom/uniface/pkg/rpc/governance/loadbalancer"
 )
 
 // MockClient is a mock client for testing

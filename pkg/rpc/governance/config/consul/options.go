@@ -9,7 +9,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/wii/uniface/pkg/rpc/governance/config"
+	"github.com/solo-kingdom/uniface/pkg/rpc/governance/config"
 )
 
 // Options 定义了 Consul 配置存储的特定选项。

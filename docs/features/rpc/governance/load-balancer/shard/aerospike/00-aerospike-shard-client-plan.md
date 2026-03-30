@@ -7,11 +7,13 @@
 ## 背景
 
 ### 现有架构
+
 - `pkg/rpc/governance/loadbalancer/shard/` - 已实现的 Shard Manager
 - `pkg/storage/kv/` - KV 存储接口定义
 - `pkg/storage/kv/redis/` - Redis 独立子模块参考实现
 
 ### 设计目标
+
 1. **独立性**: 作为独立 go submodule，不污染主项目依赖
 2. **复用性**: 基于 Shard Manager 接口，复用现有分片能力
 3. **简洁性**: 提供简单的 API，隐藏分片复杂性
@@ -111,18 +113,21 @@ ConsistentHash 算法
 ## 实现步骤
 
 ### 第一阶段：基础框架
+
 1. ✅ 创建目录结构
 2. ✅ 创建 go.mod 独立模块
 3. ✅ 实现 Instance 定义
 4. ✅ 实现 Options 配置
 
 ### 第二阶段：核心实现
+
 1. ✅ 实现 ShardClient 结构
 2. ✅ 实现客户端工厂
 3. ✅ 实现基本 CRUD 操作
 4. ✅ 实现连接管理
 
 ### 第三阶段：测试与文档
+
 1. ✅ 编写单元测试
 2. ✅ 编写使用示例
 3. ✅ 编写 README
@@ -133,21 +138,22 @@ ConsistentHash 算法
 ### go.mod 配置
 
 ```go
-module github.com/wii/uniface/pkg/storage/kv/aerospike
+module github.com/solo-kingdom/uniface/pkg/storage/kv/aerospike
 
 go 1.24
 
 require (
     github.com/aerospike/aerospike-client-go/v7 v7.x.x
-    github.com/wii/uniface v0.0.0
+    github.com/solo-kingdom/uniface v0.0.0
 )
 
-replace github.com/wii/uniface => ../../../../
+replace github.com/solo-kingdom/uniface => ../../../../
 ```
 
 ### 依赖说明
+
 - `aerospike-client-go` - Aerospike 官方 Go 客户端
-- `wii/uniface` - 主项目，提供 Shard Manager 接口
+- `solo-kingdom/uniface` - 主项目，提供 Shard Manager 接口
 
 ## API 设计
 
@@ -205,12 +211,14 @@ rawClient, err := client.GetClient(ctx, "user:123")
 ## 测试策略
 
 ### 单元测试
+
 - ✅ 测试分片路由稳定性
 - ✅ 测试客户端创建和缓存
 - ✅ 测试基本 CRUD 操作
 - ✅ 测试错误处理
 
 ### 集成测试
+
 - 需要 Aerospike 集群环境
 - 可使用 Docker Compose 启动测试集群
 - 测试真实分片场景

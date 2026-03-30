@@ -1,10 +1,10 @@
-module github.com/wii/uniface/pkg/storage/kv/aerospike
+module github.com/solo-kingdom/uniface/pkg/storage/kv/aerospike
 
 go 1.24
 
 require (
 	github.com/aerospike/aerospike-client-go/v7 v7.10.2
-	github.com/wii/uniface v0.0.0
+	github.com/solo-kingdom/uniface v0.0.0
 )
 
 require (
@@ -19,4 +19,4 @@ require (
 	google.golang.org/protobuf v1.34.2 // indirect
 )
 
-replace github.com/wii/uniface => ../../../../
+replace github.com/solo-kingdom/uniface => ../../../../

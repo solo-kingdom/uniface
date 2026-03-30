@@ -10,8 +10,8 @@ import (
 	"sync"
 
 	as "github.com/aerospike/aerospike-client-go/v7"
-	"github.com/wii/uniface/pkg/rpc/governance/loadbalancer"
-	"github.com/wii/uniface/pkg/rpc/governance/loadbalancer/shard"
+	"github.com/solo-kingdom/uniface/pkg/rpc/governance/loadbalancer"
+	"github.com/solo-kingdom/uniface/pkg/rpc/governance/loadbalancer/shard"
 )
 
 // Instance represents an Aerospike instance configuration.

@@ -106,7 +106,7 @@ WatchPrefix(ctx, prefix, handler)
 #### 测试结果
 ```
 PASS
-ok      github.com/wii/uniface/pkg/rpc/governance/config/consul    0.181s
+ok      github.com/solo-kingdom/uniface/pkg/rpc/governance/config/consul    0.181s
 ```
 
 ## 代码质量

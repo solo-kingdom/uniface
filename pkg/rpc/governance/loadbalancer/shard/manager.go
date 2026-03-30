@@ -7,8 +7,8 @@ package shard
 import (
 	"context"
 
-	"github.com/wii/uniface/pkg/rpc/governance/loadbalancer"
-	"github.com/wii/uniface/pkg/rpc/governance/loadbalancer/implementations/consistenthash"
+	"github.com/solo-kingdom/uniface/pkg/rpc/governance/loadbalancer"
+	"github.com/solo-kingdom/uniface/pkg/rpc/governance/loadbalancer/implementations/consistenthash"
 )
 
 // ShardManager implements the Manager interface.

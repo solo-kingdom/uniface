@@ -20,7 +20,7 @@
 
 ```bash
 # 作为独立模块使用
-go get github.com/wii/uniface/pkg/storage/kv/aerospike
+go get github.com/solo-kingdom/uniface/pkg/storage/kv/aerospike
 ```
 
 ### 基本使用
@@ -32,7 +32,7 @@ import (
     "context"
     "log"
     
-    "github.com/wii/uniface/pkg/storage/kv/aerospike"
+    "github.com/solo-kingdom/uniface/pkg/storage/kv/aerospike"
 )
 
 func main() {

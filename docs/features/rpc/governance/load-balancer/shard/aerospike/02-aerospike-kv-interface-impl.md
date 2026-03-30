@@ -307,8 +307,8 @@ pkg/storage/kv/aerospike/
 
 无新增依赖，使用现有依赖：
 - `github.com/aerospike/aerospike-client-go/v7`
-- `github.com/wii/uniface/pkg/storage/kv`
-- `github.com/wii/uniface/pkg/rpc/governance/loadbalancer/shard`
+- `github.com/solo-kingdom/uniface/pkg/storage/kv`
+- `github.com/solo-kingdom/uniface/pkg/rpc/governance/loadbalancer/shard`
 
 ## 兼容性
 

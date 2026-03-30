@@ -288,8 +288,8 @@ package main
 import (
     "context"
     "google.golang.org/grpc"
-    "github.com/wii/uniface/pkg/rpc/governance/loadbalancer"
-    "github.com/wii/uniface/pkg/rpc/governance/loadbalancer/implementations/roundrobin"
+    "github.com/solo-kingdom/uniface/pkg/rpc/governance/loadbalancer"
+    "github.com/solo-kingdom/uniface/pkg/rpc/governance/loadbalancer/implementations/roundrobin"
 )
 
 func main() {

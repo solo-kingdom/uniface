@@ -12,8 +12,8 @@ import (
 	"log"
 	"time"
 
-	"github.com/wii/uniface/pkg/storage/kv"
-	"github.com/wii/uniface/pkg/storage/kv/aerospike"
+	"github.com/solo-kingdom/uniface/pkg/storage/kv"
+	"github.com/solo-kingdom/uniface/pkg/storage/kv/aerospike"
 )
 
 // ExampleNewShardClient 演示如何创建分片客户端

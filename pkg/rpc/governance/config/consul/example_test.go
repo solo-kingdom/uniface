@@ -9,8 +9,8 @@ import (
 	"log"
 	"time"
 
-	"github.com/wii/uniface/pkg/rpc/governance/config"
-	"github.com/wii/uniface/pkg/rpc/governance/config/consul"
+	"github.com/solo-kingdom/uniface/pkg/rpc/governance/config"
+	"github.com/solo-kingdom/uniface/pkg/rpc/governance/config/consul"
 )
 
 // ExampleNewStorage 演示如何创建 Consul 配置存储。

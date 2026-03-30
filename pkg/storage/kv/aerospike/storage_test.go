@@ -10,7 +10,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/wii/uniface/pkg/storage/kv"
+	"github.com/solo-kingdom/uniface/pkg/storage/kv"
 )
 
 // TestNewStorage 测试创建 Storage

@@ -58,16 +58,16 @@
 
 ### 4. 子模块配置
 ```go
-module github.com/wii/uniface/pkg/rpc/governance/config/consul
+module github.com/solo-kingdom/uniface/pkg/rpc/governance/config/consul
 
 go 1.24
 
 require (
     github.com/hashicorp/consul/api v1.27.0
-    github.com/wii/uniface v0.0.0
+    github.com/solo-kingdom/uniface v0.0.0
 )
 
-replace github.com/wii/uniface => ../../../../../
+replace github.com/solo-kingdom/uniface => ../../../../../
 ```
 
 ## 目录结构

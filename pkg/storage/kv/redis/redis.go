@@ -1,5 +1,5 @@
 // Package redis provides a Redis-based implementation of the KV storage interface.
-// This package implements github.com/wii/uniface/pkg/storage/kv.Storage interface.
+// This package implements github.com/solo-kingdom/uniface/pkg/storage/kv.Storage interface.
 package redis
 
 import (
@@ -10,7 +10,7 @@ import (
 	"time"
 
 	"github.com/redis/go-redis/v9"
-	"github.com/wii/uniface/pkg/storage/kv"
+	"github.com/solo-kingdom/uniface/pkg/storage/kv"
 )
 
 // Storage implements kv.Storage interface using Redis.

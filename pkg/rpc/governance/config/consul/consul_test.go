@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/wii/uniface/pkg/rpc/governance/config"
+	"github.com/solo-kingdom/uniface/pkg/rpc/governance/config"
 )
 
 // 注意：这些测试需要运行 Consul 服务器。

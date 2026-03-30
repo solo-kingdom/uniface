@@ -116,14 +116,14 @@ record, _ := client.Get(ctx, "user-123")
 - 通过 `replace` 指令引用主项目
 
 ```go
-module github.com/wii/uniface/pkg/storage/kv/aerospike
+module github.com/solo-kingdom/uniface/pkg/storage/kv/aerospike
 
 require (
     github.com/aerospike/aerospike-client-go/v7 v7.10.2
-    github.com/wii/uniface v0.0.0
+    github.com/solo-kingdom/uniface v0.0.0
 )
 
-replace github.com/wii/uniface => ../../../../
+replace github.com/solo-kingdom/uniface => ../../../../
 ```
 
 ### 2. 基于 Shard Manager
@@ -174,7 +174,7 @@ replace github.com/wii/uniface => ../../../../
 
 ### 直接依赖
 - `github.com/aerospike/aerospike-client-go/v7` v7.10.2
-- `github.com/wii/uniface` (主项目)
+- `github.com/solo-kingdom/uniface` (主项目)
 
 ### 间接依赖
 - `github.com/cespare/xxhash/v2` - 哈希算法

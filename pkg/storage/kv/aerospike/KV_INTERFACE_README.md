@@ -20,7 +20,7 @@ import (
     "context"
     "log"
     
-    "github.com/wii/uniface/pkg/storage/kv/aerospike"
+    "github.com/solo-kingdom/uniface/pkg/storage/kv/aerospike"
 )
 
 func main() {
@@ -357,7 +357,7 @@ storage, _ := aerospike.NewStorage(instances,
 Storage 完全实现了 `kv.Storage` 接口，可以无缝切换：
 
 ```go
-import "github.com/wii/uniface/pkg/storage/kv"
+import "github.com/solo-kingdom/uniface/pkg/storage/kv"
 
 func UseStorage(storage kv.Storage) {
     // 可以是 Redis、Aerospike 或其他实现

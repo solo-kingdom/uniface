@@ -1,5 +1,5 @@
 // Package boltdb provides a BoltDB-based implementation of the KV storage interface.
-// This package implements github.com/wii/uniface/pkg/storage/kv.Storage interface.
+// This package implements github.com/solo-kingdom/uniface/pkg/storage/kv.Storage interface.
 package boltdb
 
 import (

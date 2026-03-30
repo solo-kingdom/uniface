@@ -10,7 +10,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/wii/uniface/pkg/storage/kv"
+	"github.com/solo-kingdom/uniface/pkg/storage/kv"
 )
 
 // skipIfNoAerospike 跳过无 Aerospike 的测试

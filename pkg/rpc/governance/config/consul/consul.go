@@ -12,7 +12,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/consul/api"
-	"github.com/wii/uniface/pkg/rpc/governance/config"
+	"github.com/solo-kingdom/uniface/pkg/rpc/governance/config"
 )
 
 // Storage 实现了基于 Consul 的配置存储。

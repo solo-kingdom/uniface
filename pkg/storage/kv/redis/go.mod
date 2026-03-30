@@ -1,10 +1,10 @@
-module github.com/wii/uniface/pkg/storage/kv/redis
+module github.com/solo-kingdom/uniface/pkg/storage/kv/redis
 
 go 1.24
 
 require (
 	github.com/redis/go-redis/v9 v9.18.0
-	github.com/wii/uniface v0.0.0
+	github.com/solo-kingdom/uniface v0.0.0
 )
 
 require (
@@ -13,4 +13,4 @@ require (
 	go.uber.org/atomic v1.11.0 // indirect
 )
 
-replace github.com/wii/uniface => ../../../../
+replace github.com/solo-kingdom/uniface => ../../../../
