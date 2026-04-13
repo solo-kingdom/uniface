@@ -4,6 +4,53 @@
 
 ---
 
+## 2026-04-13 - 文档重建（OpenSpec 工作流对齐）
+
+### 目的
+重建文档体系，使其与 OpenSpec spec-driven 工作流对齐，为后续的 spec 编程提供清晰的文档基础。
+
+### 新增文件
+
+**OpenSpec 能力规格**（`openspec/specs/`）：
+- `kv-storage/spec.md` - KV 存储接口行为规格
+- `config-storage/spec.md` - 配置存储接口行为规格
+- `load-balancer/spec.md` - 负载均衡器接口行为规格
+- `shard-manager/spec.md` - 分片管理器行为规格
+
+### 文件移动
+
+**docs/features/ → docs/rpc/governance/**：
+- `docs/features/rpc/governance/config/*` → `docs/rpc/governance/config/`
+- `docs/features/rpc/governance/load-balancer/shard/*` → `docs/rpc/governance/load-balancer/shard/`
+- `docs/features/rpc/governance/load-balancer/shard/aerospike/*` → `docs/rpc/governance/load-balancer/shard/aerospike/`
+
+已删除 `docs/features/` 目录。
+
+### 重写文件
+
+- `docs/PROJECT_STRUCTURE.md` - 准确反映当前项目结构（含 openspec/、Go 子模块等）
+- `docs/README.md` - 更新文档导航，纳入 OpenSpec 工作流
+
+### 更新文件
+
+- `docs/CHANGELOG.md` - 本文件
+- `AI.MD` - 更新开发规则，反映 OpenSpec 工作流
+- `CLAUDE.md` - 增加项目结构和开发规约中的 OpenSpec 说明
+- `specs/README.md` - 标注为历史规格归档
+
+### 文档体系变更
+
+三层结构从旧模式：
+```
+specs/ (旧规格) → docs/ (设计) → pkg/ (实现)
+```
+更新为 OpenSpec 驱动：
+```
+openspec/specs/ (能力规格) → docs/ (设计) → pkg/ (实现)
+```
+
+---
+
 ## 2026-03-08 (第二次更新) - 重大重构
 
 ### 重构目的

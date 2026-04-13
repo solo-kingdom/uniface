@@ -1,152 +1,166 @@
 # 项目结构
 
-本文档描述 Uniface 项目的目录结构和组织方式。
+本文档描述 Uniface 项目的实际目录结构和组织方式。
 
 ```
 uniface/
-├── cmd/                    # 命令行应用程序
-│   └── uniface/           # 主应用程序入口
-│       └── main.go        # 应用程序入口点
+├── pkg/                           # 公共包（可复用库）
+│   ├── rpc/governance/
+│   │   ├── config/               # 配置存储接口
+│   │   │   ├── interface.go      # 接口定义
+│   │   │   ├── options.go        # Options 模式
+│   │   │   ├── errors.go         # 错误定义
+│   │   │   └── consul/           # Consul 实现（Go 子模块）
+│   │   └── loadbalancer/         # 负载均衡器
+│   │       ├── interface.go      # 接口定义（泛型 Balancer[T]）
+│   │       ├── options.go        # Options 模式
+│   │       ├── errors.go         # 错误定义
+│   │       ├── base/             # 基础实现（客户端缓存、实例管理）
+│   │       ├── implementations/  # 算法实现
+│   │       │   ├── consistenthash/
+│   │       │   ├── random/
+│   │       │   ├── roundrobin/
+│   │       │   └── weighted/
+│   │       └── shard/            # 分片管理器
+│   │           ├── interface.go
+│   │           ├── manager.go
+│   │           └── errors.go
+│   └── storage/
+│       ├── kv/                   # KV 存储接口
+│       │   ├── interface.go      # 接口定义
+│       │   ├── options.go        # Options 模式
+│       │   ├── errors.go         # 错误定义
+│       │   ├── redis/            # Redis 实现（Go 子模块）
+│       │   ├── aerospike/        # Aerospike 实现（Go 子模块）
+│       │   └── boltdb/           # BoltDB 实现（Go 子模块）
+│       └── config/               # 配置存储接口
+│           ├── interface.go
+│           ├── options.go
+│           └── errors.go
 │
-├── internal/              # 内部包（私有）
-│   ├── core/             # 核心业务逻辑和基础组件
-│   └── utils/            # 工具函数和助手
+├── docs/                          # 文档（与代码路径保持对应）
+│   ├── AI_CODING_RULES.md        # AI 编码规则
+│   ├── PROJECT_STRUCTURE.md      # 本文件
+│   ├── README.md                 # 文档索引中心
+│   ├── CHANGELOG.md              # 文档变更日志
+│   ├── rpc/governance/
+│   │   ├── load-balancer/        # 对应 pkg/rpc/governance/loadbalancer/
+│   │   │   ├── implementation-plan.md
+│   │   │   └── shard/           # 对应 pkg/.../loadbalancer/shard/
+│   │   │       └── aerospike/
+│   │   └── config/              # 对应 pkg/rpc/governance/config/
+│   └── storage/
+│       ├── kv/                   # 对应 pkg/storage/kv/
+│       └── config/               # 对应 pkg/storage/config/
 │
-├── pkg/                   # 公共包（可复用库）
-│                        # 供外部使用的导出 API
+├── openspec/                      # OpenSpec spec-driven 工作流
+│   ├── config.yaml               # 工作流配置
+│   ├── specs/                    # 能力规格（capability specs）
+│   │   ├── kv-storage/spec.md
+│   │   ├── config-storage/spec.md
+│   │   ├── load-balancer/spec.md
+│   │   └── shard-manager/spec.md
+│   └── changes/                  # 变更管理
+│       └── archive/              # 已归档的变更
 │
-├── prompts/               # AI 提示词模板和配置
-│   ├── architecture/    # 架构和设计提示词
-│   ├── features/        # 功能实现提示词
-│   └── tasks/           # 具体任务提示词
+├── specs/                         # 历史规格归档（只读参考）
+│   ├── architecture/
+│   └── features/
+│       ├── rpc/governance/
+│       └── storage/kv/
 │
-├── test/                  # 测试文件和测试工具
+├── prompts/                       # AI 提示词模板（只读，历史参考）
+│   ├── architecture/
+│   ├── features/
+│   └── tasks/
 │
-├── docs/                  # 文档
-│
-├── go.mod                # Go 模块定义
-├── go.sum                # Go 模块校验和
-├── README.md             # 项目概述
-└── .gitignore           # Git 忽略规则
+├── go.mod                         # Go 模块定义 (Go 1.24)
+├── Makefile                       # 构建自动化
+├── AI.MD                          # AI 开发规则
+├── CLAUDE.md                      # Claude/AI 助手指令
+├── README.md                      # 项目概述
+└── LICENSE                        # MIT 许可证
 ```
 
 ## 目录说明
 
-### `cmd/`
-包含主应用程序的入口点。每个子目录代表一个不同的命令行应用程序。
-
-- **目的**: 将可执行代码与库代码分离
-- **用途**: 主应用程序逻辑和初始化
-- **注意**: 遵循标准 Go 项目布局约定
-
-### `internal/`
-包含不应被外部项目导入的私有包。
-
-- **目的**: 封装实现细节
-- **用途**: 内部业务逻辑、工具和助手
-- **注意**: Go 阻止从模块外部导入 `internal` 包
-
-#### `internal/core/`
-应用程序的核心业务逻辑和基础组件。
-
-#### `internal/utils/`
-整个项目中使用的工具函数和辅助代码。
-
 ### `pkg/`
-包含可被外部项目导入的公共包。
 
-- **目的**: 可复用的库组件
-- **用途**: 导出的 API 和共享功能
-- **注意**: 其他项目可依赖的稳定 API
+公共包，包含可被外部项目导入的稳定 API。
 
-### `prompts/`
-包含所有 AI 提示词模板和配置，用于 vibe coding。
-
-#### `prompts/architecture/`
-与系统架构、设计模式和高层决策相关的提示词。
-
-- **示例**: 架构设计提示词、系统结构决策、模式选择
-
-#### `prompts/features/`
-用于实现特定功能的提示词。
-
-- **示例**: 功能实现指南、功能特定的编码任务
-
-#### `prompts/tasks/`
-用于特定开发任务、错误修复或重构的提示词。
-
-- **示例**: 错误修复提示词、重构指南、代码改进任务
-
-### `test/`
-包含测试文件和测试工具。
-
-- **目的**: 将测试代码与源代码分开组织
-- **用途**: 集成测试、测试工具、测试辅助函数
+**Go 子模块**（独立 go.mod）：
+- `pkg/storage/kv/redis/` - Redis KV 实现
+- `pkg/storage/kv/aerospike/` - Aerospike KV 实现
+- `pkg/storage/kv/boltdb/` - BoltDB KV 实现
+- `pkg/rpc/governance/config/consul/` - Consul 配置实现
 
 ### `docs/`
-包含项目文档。
 
-- **目的**: 除 README.md 之外的额外文档
-- **用途**: 架构文档、API 文档、设计文档
+项目文档，路径与 `pkg/` 代码路径保持对应关系。
+
+| 文档路径 | 对应代码 |
+|---------|---------|
+| `docs/rpc/governance/load-balancer/` | `pkg/rpc/governance/loadbalancer/` |
+| `docs/rpc/governance/config/` | `pkg/rpc/governance/config/` |
+| `docs/storage/kv/` | `pkg/storage/kv/` |
+| `docs/storage/config/` | `pkg/storage/config/` |
+
+### `openspec/`
+
+OpenSpec spec-driven 开发工作流目录。
+
+- `specs/` - 能力规格（capability specs），定义各功能的接口契约和行为规格
+- `changes/` - 活跃的变更管理，每个变更包含 proposal、design、specs、tasks
+
+### `specs/`
+
+历史规格归档。包含原始的需求规格文件（编号格式如 `00-iface.md`），用于历史参考。新功能开发使用 `openspec/specs/`。
+
+### `prompts/`
+
+AI 提示词模板，只读参考。包含原始的需求描述和实现指导。
 
 ## 核心原则
 
-### 1. Prompt 与代码分离
-- **`prompts/`**: 所有 AI 提示词与实现代码分开存储
-- **`cmd/`, `internal/`, `pkg/`**: 实际的 Go 代码实现
-- **优势**: "做什么"（prompts）和"怎么做"（code）之间清晰分离
+### 1. 接口优先
 
-### 2. 公共 API 与私有 API
-- **`pkg/`**: 供外部使用的公共稳定 API
-- **`internal/`**: 私有、特定于实现的代码
-- **优势**: 清晰的 API 边界和封装
+所有功能先定义接口 (`interface.go`)，实现在独立子目录中。
 
-### 3. 标准 Go 布局
-- 遵循社区公认的 Go 项目结构
-- **优势**: Go 开发者的熟悉度，最佳实践
+### 2. 泛型抽象
 
-### 4. 可扩展性
-- 易于在 `cmd/` 中添加新命令
-- 易于组织内部包
-- 易于在 `pkg/` 中扩展公共库
-- 易于按目的分类提示词
+使用 Go 泛型实现类型安全：`Storage[T any]`、`Balancer[T any]`。
 
-## 添加新组件
+### 3. Options 模式
 
-### 添加新命令
-1. 创建目录：`cmd/newcommand/`
-2. 添加带有包 `main` 的 `main.go`
+可配置函数接受 `opts ...Option`，灵活组合配置。
 
-### 添加新内部包
-1. 创建目录：`internal/newpackage/`
-2. 添加带有包 `newpackage` 的 Go 文件
+### 4. 三层文档结构
 
-### 添加新公共包
-1. 创建目录：`pkg/newpackage/`
-2. 添加带有包 `newpackage` 的 Go 文件
+```
+openspec/specs/    → 能力规格（定义"做什么"）
+docs/              → 设计文档（记录"怎么做"）
+pkg/               → 代码实现（"做出来"）
+```
 
-### 添加新提示词
-1. 在 `prompts/` 中选择适当的子目录
-2. 创建带有 `.md` 或 `.txt` 扩展名的描述性提示词文件
-3. 在文件顶部记录目的和用法
+### 5. 文档路径一致性
 
-## 命名规范
+文档路径与代码路径保持对应，便于查找。注意命名差异：代码用 `loadbalancer`（Go 包名无连字符），文档用 `load-balancer`。
 
-- **目录**: 小写，单词或连字符
-- **文件**: 小写，单词或下划线分隔
-- **包**: 小写，单词，无下划线或连字符
-- **提示词文件**: 清晰表明用途的描述性名称
+## 添加新功能
 
-## Git 工作流
+使用 OpenSpec spec-driven 工作流：
 
-- **主分支**: 稳定的、生产就绪的代码
-- **功能分支**: 用于新功能和增强
-- **提示词更新**: 提示词与代码一起版本化
-- **文档**: 保持文档与代码更改同步更新
+1. 运行 `/opsx:propose <描述>` 创建变更提案
+2. 系统自动生成 proposal、design、specs、tasks
+3. 运行 `/opsx:apply` 按任务实施
+4. 完成后运行 `/opsx:archive` 归档
 
-## 其他说明
+## Go 子模块管理
 
-- 此结构支持 CLI 应用程序和库开发
-- 提示词可以像任何其他代码一样进行版本化和审查
-- 分离允许提示词和实现的独立演进
-- 清晰的组织结构易于新成员加入
+项目使用 Go 多模块仓库（multi-module repository），部分实现作为独立 Go 子模块管理：
+
+```bash
+make mod    # 整理所有模块依赖
+make build  # 构建所有模块
+make test   # 测试所有模块
+```
