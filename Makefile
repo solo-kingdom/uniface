@@ -2,7 +2,7 @@
 
 # Module paths
 ROOT_MODULE := .
-SUB_MODULES := pkg/storage/kv/redis
+SUB_MODULES := pkg/storage/kv/redis pkg/messaging/queue/kafka pkg/messaging/queue/rabbitmq pkg/messaging/queue/nats pkg/messaging/queue/natsjetstream
 
 # Go parameters
 GOCMD := go
