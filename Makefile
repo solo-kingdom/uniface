@@ -1,8 +1,16 @@
-.PHONY: mod build test clean
+.PHONY: mod build test tag clean
 
 # Module paths
 ROOT_MODULE := .
-SUB_MODULES := pkg/storage/kv/redis pkg/messaging/queue/kafka pkg/messaging/queue/rabbitmq pkg/messaging/queue/nats pkg/messaging/queue/natsjetstream
+SUB_MODULES := \
+	pkg/storage/kv/redis \
+	pkg/storage/kv/boltdb \
+	pkg/storage/kv/aerospike \
+	pkg/rpc/governance/config/consul \
+	pkg/messaging/queue/rabbitmq \
+	pkg/messaging/queue/nats \
+	pkg/messaging/queue/natsjetstream \
+	pkg/messaging/queue/kafka
 
 # Go parameters
 GOCMD := go
@@ -44,6 +52,18 @@ test:
 		(cd $$module && $(GOTEST) $(GOFLAGS) ./...); \
 	done
 
+# Create version tags for root module and all submodules
+# Usage: make tag V=v0.2.0          (local only)
+#        make tag V=v0.2.0 PUSH=1   (create and push)
+.PHONY: tag
+tag:
+ifndef V
+	$(error Usage: make tag V=vX.Y.Z [PUSH=1])
+endif
+	@ARGS="$(V)"; \
+	if [ "$(PUSH)" = "1" ]; then ARGS="$$ARGS --push"; fi; \
+	./scripts/tag.sh $$ARGS
+
 # Clean build artifacts
 .PHONY: clean
 clean:
@@ -58,8 +78,9 @@ help:
 	@echo "Usage: make [target]"
 	@echo ""
 	@echo "Targets:"
-	@echo "  mod     Run go mod tidy for all modules"
-	@echo "  build   Build all modules"
-	@echo "  test    Run tests for all modules"
-	@echo "  clean   Clean build artifacts"
-	@echo "  help    Show this help message"
+	@echo "  mod           Run go mod tidy for all modules"
+	@echo "  build         Build all modules"
+	@echo "  test          Run tests for all modules"
+	@echo "  tag           Create version tags (V=vX.Y.Z, PUSH=1 to push)"
+	@echo "  clean         Clean build artifacts"
+	@echo "  help          Show this help message"
