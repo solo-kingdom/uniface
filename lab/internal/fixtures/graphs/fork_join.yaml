@@ -1,0 +1,29 @@
+graph_id: fork_join
+version: v1
+entity_type: lab.Generic
+schema_version: v1
+entry: fork
+nodes:
+  fork:
+    kind: compute
+    unit: lab.echo
+    transitions:
+      - target: branch_a
+  branch_a:
+    kind: compute
+    unit: lab.echo
+    transitions:
+      - target: branch_b
+  branch_b:
+    kind: compute
+    unit: lab.echo
+    transitions:
+      - target: join
+  join:
+    kind: compute
+    unit: lab.echo
+    transitions:
+      - target: done
+  done:
+    kind: terminal
+    outcome: success

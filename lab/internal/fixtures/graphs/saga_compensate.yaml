@@ -1,0 +1,15 @@
+graph_id: saga_compensate
+version: v1
+entity_type: lab.Generic
+schema_version: v1
+entry: try_step
+nodes:
+  try_step:
+    kind: compute
+    unit: lab.fail_once
+    compensator: lab.rollback
+    transitions:
+      - target: done
+  done:
+    kind: terminal
+    outcome: success

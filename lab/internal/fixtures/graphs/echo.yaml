@@ -1,0 +1,14 @@
+graph_id: echo
+version: v1
+entity_type: lab.Generic
+schema_version: v1
+entry: echo
+nodes:
+  echo:
+    kind: compute
+    unit: lab.echo
+    transitions:
+      - target: done
+  done:
+    kind: terminal
+    outcome: success

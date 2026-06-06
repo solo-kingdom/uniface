@@ -17,7 +17,12 @@ make mod      # 整理所有模块依赖（根模块 + 子模块）
 make build    # 构建所有模块
 make test     # 测试所有模块
 make clean    # 清理 bin/、*.test、*.out
+make lab-build  # 编译 lab 验证台（独立子模块）
+make lab-up     # 启动 lab 环境（compose + 六进程）
+make lab-down   # 停止 lab 环境
 ```
+
+**Lab 验证台**: 详见 [`lab/README.md`](lab/README.md)。`lab/` 为独立 Go 子模块，不参与 `make test` 与版本 tag 发布。
 
 运行单个测试：
 ```bash

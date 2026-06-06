@@ -58,7 +58,7 @@ fi
 # ── 自动发现子模块 ───────────────────────────────────────
 # 从文件系统中扫描所有包含 go.mod 的子目录
 mapfile -t SUB_MODULES < <(
-    find . -name go.mod -not -path './.git/*' -not -path './go.mod' | \
+    find . -name go.mod -not -path './.git/*' -not -path './go.mod' -not -path './lab/*' | \
         sed 's|./\(.*\)/go.mod|\1|' | \
         sort
 )

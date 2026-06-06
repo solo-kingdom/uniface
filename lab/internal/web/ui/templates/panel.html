@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{{.Title}}</title>
+  <script src="https://unpkg.com/htmx.org@2.0.4"></script>
+  <style>
+    body { font-family: system-ui, sans-serif; margin: 2rem; background: #0f172a; color: #e2e8f0; }
+    pre { background: #1e293b; padding: 1rem; border-radius: 8px; overflow: auto; }
+    a { color: #93c5fd; }
+  </style>
+</head>
+<body>
+  <p><a href="/">← Dashboard</a></p>
+  <h1>{{.Domain}} 面板</h1>
+  <div id="detail" hx-get="/api/panel/{{.Domain}}" hx-trigger="load, every 3s" hx-swap="innerHTML">
+    加载中...
+  </div>
+</body>
+</html>

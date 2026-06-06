@@ -1,4 +1,4 @@
-.PHONY: mod build test tag clean proto
+.PHONY: mod build test tag clean proto lab-build lab-up lab-down
 
 # Module paths
 ROOT_MODULE := .
@@ -11,6 +11,8 @@ SUB_MODULES := \
 	pkg/messaging/queue/nats \
 	pkg/messaging/queue/natsjetstream \
 	pkg/messaging/queue/kafka
+
+LAB_MODULE := lab
 
 # Go parameters
 GOCMD := go
@@ -48,7 +50,7 @@ build:
 		(cd $$module && $(GOBUILD) $(GOFLAGS) ./...); \
 	done
 
-# Run tests for all modules
+# Run tests for all modules (lab excluded)
 .PHONY: test
 test:
 	@echo ">>> Testing root module"
@@ -57,6 +59,17 @@ test:
 		echo ">>> Testing $$module"; \
 		(cd $$module && $(GOTEST) $(GOFLAGS) ./...); \
 	done
+
+# Lab targets
+.PHONY: lab-build lab-up lab-down
+lab-build:
+	$(MAKE) -C $(LAB_MODULE) build
+
+lab-up:
+	$(MAKE) -C $(LAB_MODULE) up
+
+lab-down:
+	$(MAKE) -C $(LAB_MODULE) down
 
 # Create version tags for root module and all submodules
 # Usage: make tag V=v0.2.0          (local only)
@@ -87,7 +100,10 @@ help:
 	@echo "  proto         Generate protobuf code from api/dag/v1"
 	@echo "  mod           Run go mod tidy for all modules"
 	@echo "  build         Build all modules"
-	@echo "  test          Run tests for all modules"
+	@echo "  test          Run tests for all modules (excludes lab)"
+	@echo "  lab-build     Build lab CLI binaries"
+	@echo "  lab-up        Start lab compose + serve processes"
+	@echo "  lab-down      Stop lab processes and compose"
 	@echo "  tag           Create version tags (V=vX.Y.Z, PUSH=1 to push)"
 	@echo "  clean         Clean build artifacts"
 	@echo "  help          Show this help message"
