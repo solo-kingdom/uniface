@@ -3,6 +3,7 @@ package memory
 import (
 	"context"
 	"fmt"
+	"sync"
 	"time"
 
 	dagv1 "github.com/solo-kingdom/uniface/api/dag/v1"
@@ -10,15 +11,17 @@ import (
 	"github.com/solo-kingdom/uniface/pkg/dag/entity"
 	"github.com/solo-kingdom/uniface/pkg/dag/graph"
 	"github.com/solo-kingdom/uniface/pkg/dag/runtime"
+	"google.golang.org/protobuf/types/known/anypb"
 )
 
 // Engine 内存 DAG 引擎。
 type Engine struct {
-	reg      *Registry
-	store    *LineStore
-	resolver dag.GraphResolver
-	opts     *dag.Options
-	closed   bool
+	reg         *Registry
+	store       *LineStore
+	resolver    dag.GraphResolver
+	opts        *dag.Options
+	entityLocks sync.Map
+	closed      bool
 }
 
 // NewEngine 创建内存引擎。
@@ -65,10 +68,19 @@ func (e *Engine) CancelInstance(ctx context.Context, ref *dagv1.EntityRef) error
 	return e.store.UpdateInstanceStatus(ref, dagv1.InstanceStatus_INSTANCE_STATUS_CANCELLED)
 }
 
+func (e *Engine) lockEntity(entityID string) func() {
+	v, _ := e.entityLocks.LoadOrStore(entityID, &sync.Mutex{})
+	mu := v.(*sync.Mutex)
+	mu.Lock()
+	return mu.Unlock
+}
+
 func (e *Engine) DeliverSignal(ctx context.Context, delivery *dagv1.SignalDelivery) error {
 	if delivery == nil || delivery.EntityId == "" {
 		return dag.ErrInstanceNotFound
 	}
+	unlock := e.lockEntity(delivery.EntityId)
+	defer unlock()
 	ref := &dagv1.EntityRef{EntityId: delivery.EntityId}
 	inst, err := e.store.GetInstance(ctx, ref)
 	if err != nil {
@@ -91,7 +103,7 @@ func (e *Engine) DeliverSignal(ctx context.Context, delivery *dagv1.SignalDelive
 	if !newDelivery {
 		return nil
 	}
-	spec, err := e.reg.GetGraph(inst.GraphVersion)
+	spec, err := e.reg.ResolveGraphForInstance(inst)
 	if err != nil {
 		return err
 	}
@@ -125,18 +137,47 @@ func (e *Engine) DeliverSignal(ctx context.Context, delivery *dagv1.SignalDelive
 }
 
 func signalNameAccepted(waiting *dag.WaitingInstance, name string) bool {
-	if waiting == nil || waiting.SignalName == "" {
-		return name != ""
+	if waiting == nil || name == "" {
+		return false
 	}
-	return waiting.SignalName == name
+	if waiting.SignalName != "" && waiting.SignalName == name {
+		return true
+	}
+	for _, accepted := range waiting.AcceptedSignals {
+		if accepted == name {
+			return true
+		}
+	}
+	return false
 }
 
 func (e *Engine) RunOnce(ctx context.Context) error {
 	sched := NewScheduler(e.reg, e.store, e.resolver, e.opts)
-	if err := sched.processTimeouts(ctx); err != nil {
+	timeouts, err := e.store.ListWaitingTimeouts(ctx, time.Now())
+	if err != nil {
 		return err
 	}
-	return sched.Tick(ctx)
+	for _, w := range timeouts {
+		unlock := e.lockEntity(w.Ref.EntityId)
+		err := sched.processTimeout(ctx, w)
+		unlock()
+		if err != nil {
+			return err
+		}
+	}
+	refs, err := e.store.ListRunnableInstances(ctx)
+	if err != nil {
+		return err
+	}
+	for _, ref := range refs {
+		unlock := e.lockEntity(ref.EntityId)
+		err := sched.processInstance(ctx, ref)
+		unlock()
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func (e *Engine) Close() error {
@@ -176,45 +217,36 @@ func (s *Scheduler) Close() error {
 	return nil
 }
 
-func (s *Scheduler) processTimeouts(ctx context.Context) error {
-	timeouts, err := s.store.ListWaitingTimeouts(ctx, time.Now())
+func (s *Scheduler) processTimeout(ctx context.Context, w *dag.WaitingInstance) error {
+	if w.OnTimeoutTargetNodeID == "" {
+		return nil
+	}
+	inst, err := s.store.GetInstance(ctx, w.Ref)
 	if err != nil {
 		return err
 	}
-	for _, w := range timeouts {
-		if w.OnTimeoutTargetNodeID == "" {
-			continue
-		}
-		inst, err := s.store.GetInstance(ctx, w.Ref)
-		if err != nil {
-			return err
-		}
-		spec, err := s.reg.GetGraph(inst.GraphVersion)
-		if err != nil {
-			return err
-		}
-		node, ok := spec.Nodes[w.OnTimeoutTargetNodeID]
-		if !ok {
-			continue
-		}
-		status, err := terminalStatusForNode(node)
-		if err != nil {
-			return err
-		}
-		idem := runtime.HopIdempotencyKey(w.Ref.EntityId, "timeout", 0)
-		if err := s.store.CommitHop(ctx, &dagv1.HopCommit{
-			Ref:            w.Ref,
-			NodeId:         w.Ref.EntityId,
-			InputSequence:  0,
-			IdempotencyKey: idem,
-			NextNodeId:     w.OnTimeoutTargetNodeID,
-			NextStatus:     status,
-			JournalKind:    dagv1.JournalKind_JOURNAL_KIND_SIGNAL_RECEIVED,
-		}); err != nil {
-			return err
-		}
+	spec, err := s.reg.ResolveGraphForInstance(inst)
+	if err != nil {
+		return err
 	}
-	return nil
+	node, ok := spec.Nodes[w.OnTimeoutTargetNodeID]
+	if !ok {
+		return nil
+	}
+	status, err := terminalStatusForNode(node)
+	if err != nil {
+		return err
+	}
+	idem := runtime.HopIdempotencyKey(w.Ref.EntityId, inst.CurrentNodeId, inst.Sequence)
+	return s.store.CommitHop(ctx, &dagv1.HopCommit{
+		Ref:            w.Ref,
+		NodeId:         inst.CurrentNodeId,
+		InputSequence:  inst.Sequence,
+		IdempotencyKey: idem,
+		NextNodeId:     w.OnTimeoutTargetNodeID,
+		NextStatus:     status,
+		JournalKind:    dagv1.JournalKind_JOURNAL_KIND_SIGNAL_RECEIVED,
+	})
 }
 
 func (s *Scheduler) processInstance(ctx context.Context, ref *dagv1.EntityRef) error {
@@ -228,7 +260,7 @@ func (s *Scheduler) processInstance(ctx context.Context, ref *dagv1.EntityRef) e
 	if inst.Status == dagv1.InstanceStatus_INSTANCE_STATUS_COMPENSATING {
 		return s.processCompensation(ctx, inst)
 	}
-	spec, err := s.reg.GetGraph(inst.GraphVersion)
+	spec, err := s.reg.ResolveGraphForInstance(inst)
 	if err != nil {
 		return err
 	}
@@ -303,7 +335,7 @@ func (s *Scheduler) handleExecuteError(ctx context.Context, inst *dagv1.EntityIn
 		return execErr
 	}
 	record.Attempt++
-	return nil
+	return s.store.UpdateExecutionAttempt(ctx, record.IdempotencyKey, record.Attempt)
 }
 
 func (s *Scheduler) applyMutation(ctx context.Context, inst *dagv1.EntityInstance, spec *dagv1.GraphSpec, node *dagv1.NodeDef,
@@ -344,6 +376,22 @@ func (s *Scheduler) commitCompute(ctx context.Context, inst *dagv1.EntityInstanc
 		outSnap = entity.CloneSnapshot(outSnap)
 		outSnap.Sequence = inst.Sequence + 1
 	}
+	unitDef, err := s.reg.GetComputeUnit(node.UnitId)
+	if err != nil {
+		return err
+	}
+	if _, isSpawn := mutation.Intent.(*dagv1.EntityMutation_Spawn); !isSpawn && outSnap != nil {
+		if err := entity.ValidateOutputType(unitDef, outSnap); err != nil {
+			return err
+		}
+		typeReg, err := s.reg.ResolveType(inst.TypeKey)
+		if err != nil {
+			return err
+		}
+		if err := entity.ValidateSchemaCompatible(inst.TypeKey, typeReg, outSnap); err != nil {
+			return err
+		}
+	}
 	nextNode, err := s.resolver.Resolve(ctx, spec, node.NodeId, outSnap)
 	if err != nil {
 		return err
@@ -360,11 +408,19 @@ func (s *Scheduler) commitCompute(ctx context.Context, inst *dagv1.EntityInstanc
 	}
 	var sagaDelta *dagv1.SagaState
 	if node.CompensatorUnitId != "" && node.Kind == dagv1.NodeKind_NODE_KIND_COMPUTE {
+		var forwardSnapshot *anypb.Any
+		if outSnap != nil && outSnap.Payload != nil {
+			forwardSnapshot = &anypb.Any{
+				TypeUrl: outSnap.Payload.TypeUrl,
+				Value:   append([]byte(nil), outSnap.Payload.Value...),
+			}
+		}
 		frame := &dagv1.CompensationFrame{
 			NodeId:            node.NodeId,
 			UnitId:            node.UnitId,
 			CompensatorUnitId: node.CompensatorUnitId,
 			ForwardSequence:   inst.Sequence + 1,
+			ForwardSnapshot:   forwardSnapshot,
 		}
 		sagaDelta = &dagv1.SagaState{Stack: []*dagv1.CompensationFrame{frame}}
 	}
@@ -393,6 +449,10 @@ func (s *Scheduler) commitCompute(ctx context.Context, inst *dagv1.EntityInstanc
 			spawned = append(spawned, spec.Ref)
 		}
 	}
+	journalKind := dagv1.JournalKind_JOURNAL_KIND_NODE_COMMITTED
+	if _, isSpawn := mutation.Intent.(*dagv1.EntityMutation_Spawn); isSpawn {
+		journalKind = dagv1.JournalKind_JOURNAL_KIND_SPAWNED
+	}
 	if err := s.store.CommitHop(ctx, &dagv1.HopCommit{
 		Ref:            inst.Ref,
 		NodeId:         node.NodeId,
@@ -403,7 +463,7 @@ func (s *Scheduler) commitCompute(ctx context.Context, inst *dagv1.EntityInstanc
 		NextStatus:     nextStatus,
 		SagaDelta:      sagaDelta,
 		Spawned:        spawned,
-		JournalKind:    dagv1.JournalKind_JOURNAL_KIND_NODE_COMMITTED,
+		JournalKind:    journalKind,
 	}); err != nil {
 		return err
 	}
@@ -447,8 +507,8 @@ func (s *Scheduler) enterWait(ctx context.Context, inst *dagv1.EntityInstance, n
 		Deadline:              deadline,
 		OnTimeoutTargetNodeID: onTimeout,
 		SignalName:            signalName,
+		AcceptedSignals:       append([]string(nil), accepted...),
 	}
-	_ = accepted
 	return s.store.SetWaiting(inst.Ref, node.NodeId, w)
 }
 
@@ -553,29 +613,29 @@ func (s *Scheduler) processCompensation(ctx context.Context, inst *dagv1.EntityI
 	idem := runtime.CompensationIdempotencyKey(inst.Ref.EntityId, frame.ForwardSequence, frame.CompensatorUnitId)
 	journal, _ := s.store.ListJournal(ctx, inst.Ref)
 	for _, j := range journal {
-		if j.IdempotencyKey == idem {
-			if _, err := s.store.PopSagaFrame(inst.Ref); err != nil {
-				return err
-			}
+		if j.IdempotencyKey == idem && j.Kind == dagv1.JournalKind_JOURNAL_KIND_COMPENSATION_COMMITTED {
 			return nil
 		}
-	}
-	if _, err := s.store.PopSagaFrame(inst.Ref); err != nil {
-		return err
 	}
 	comp, err := s.reg.GetCompensator(frame.CompensatorUnitId)
 	if err != nil {
 		return err
 	}
-	snap, err := s.store.GetSnapshot(ctx, inst.Ref)
-	if err != nil {
-		return err
+	var snapshotPayload *anypb.Any
+	if frame.ForwardSnapshot != nil {
+		snapshotPayload = frame.ForwardSnapshot
+	} else {
+		snap, err := s.store.GetSnapshot(ctx, inst.Ref)
+		if err != nil {
+			return err
+		}
+		snapshotPayload = snap.Payload
 	}
 	compCtx := &dagv1.CompensationContext{
 		EntityId:        inst.Ref.EntityId,
 		NodeId:          frame.NodeId,
 		ForwardSequence: frame.ForwardSequence,
-		Snapshot:        snap.Payload,
+		Snapshot:        snapshotPayload,
 	}
 	if err := comp.Compensate(ctx, compCtx); err != nil {
 		return err
@@ -630,13 +690,18 @@ func (s *Scheduler) advanceAfterCommit(ctx context.Context, inst *dagv1.EntityIn
 	if err != nil {
 		return err
 	}
+	if err := s.store.AdvanceInstanceNode(ctx, inst.Ref, nextNode, dagv1.InstanceStatus_INSTANCE_STATUS_RUNNING); err != nil {
+		return err
+	}
 	updated, err := s.store.GetInstance(ctx, inst.Ref)
 	if err != nil {
 		return err
 	}
-	updated.CurrentNodeId = nextNode
 	if n, ok := spec.Nodes[nextNode]; ok && n.Kind == dagv1.NodeKind_NODE_KIND_TERMINAL {
 		return s.commitTerminal(ctx, updated, n)
+	}
+	if n, ok := spec.Nodes[nextNode]; ok && n.Kind == dagv1.NodeKind_NODE_KIND_WAIT {
+		return s.enterWait(ctx, updated, n, waitSignalFromNode(n))
 	}
 	return nil
 }

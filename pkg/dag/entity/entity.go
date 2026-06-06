@@ -89,3 +89,37 @@ func TypeKeyEqual(a, b *dagv1.EntityTypeKey) bool {
 	}
 	return a.EntityType == b.EntityType && a.PayloadSchemaVersion == b.PayloadSchemaVersion
 }
+
+// ValidateOutputType 校验快照 type_key 在 unit output_type_keys 中（非空时）。
+func ValidateOutputType(unitDef *dagv1.ComputeUnitDef, snapshot *dagv1.EntitySnapshot) error {
+	if unitDef == nil || snapshot == nil || snapshot.TypeKey == nil {
+		return dag.ErrTypeMismatch
+	}
+	if len(unitDef.OutputTypeKeys) == 0 {
+		return nil
+	}
+	for _, k := range unitDef.OutputTypeKeys {
+		if TypeKeyEqual(k, snapshot.TypeKey) {
+			return nil
+		}
+	}
+	return dag.ErrTypeMismatch
+}
+
+// ValidateSchemaCompatible 校验快照 type_key 与实例初始类型或 compatible_inputs 兼容。
+func ValidateSchemaCompatible(instTypeKey *dagv1.EntityTypeKey, reg *dagv1.EntityTypeRegistration, snapshot *dagv1.EntitySnapshot) error {
+	if snapshot == nil || snapshot.TypeKey == nil {
+		return dag.ErrIncompatibleSchema
+	}
+	if TypeKeyEqual(instTypeKey, snapshot.TypeKey) {
+		return nil
+	}
+	if reg != nil {
+		for _, c := range reg.CompatibleInputs {
+			if TypeKeyEqual(c, snapshot.TypeKey) {
+				return nil
+			}
+		}
+	}
+	return dag.ErrIncompatibleSchema
+}

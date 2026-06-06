@@ -1,8 +1,5 @@
-# dag-saga Specification
+## MODIFIED Requirements
 
-## Purpose
-TBD - created by archiving change add-dag-engine. Update Purpose after archive.
-## Requirements
 ### Requirement: 正向 hop 压栈
 
 当 `COMPUTE` 节点成功 `CommitHop` 且配置了 `compensator_unit_id`，系统 SHALL 向 `SagaState.stack` push `CompensationFrame`（含 `node_id`、`unit_id`、`compensator_unit_id`、`forward_sequence`、`forward_snapshot`）。`SagaState` SHALL 与 `EntityInstance` 持久化存储。
@@ -49,13 +46,3 @@ TBD - created by archiving change add-dag-engine. Update Purpose after archive.
 
 - **WHEN** compensator 返回 retryable 错误且 attempt 未耗尽
 - **THEN** 系统按 `RetryPolicy` 重试，不 pop 下一帧直至当前帧 committed 或标记失败
-
-### Requirement: 补偿后终态
-
-补偿完成后，系统 SHALL 根据图路由将实例导向 `TERMINAL_OUTCOME_FAILURE` 或保持 `COMPENSATED` 终态。
-
-#### Scenario: 补偿后进入失败终止节点
-
-- **WHEN** 补偿全部完成且图配置补偿后 transition 指向 `term_failure`
-- **THEN** 实例到达 `TERMINAL` 且 outcome 为 `FAILURE`
-

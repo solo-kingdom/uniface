@@ -1,21 +1,15 @@
-# dag-runtime Specification
+## ADDED Requirements
 
-## Purpose
-TBD - created by archiving change add-dag-engine. Update Purpose after archive.
-## Requirements
-### Requirement: Engine 实例生命周期
+### Requirement: 同实例 hop 串行
 
-`Engine` SHALL 提供 `StartInstance`、`GetInstance`、`CancelInstance`。`CancelInstance` SHALL 将实例置为 `CANCELLED` 并拒绝后续 hop。
+`Engine` SHALL 对同一 `entity_id` 的 `RunOnce` hop 处理与 `DeliverSignal` 互斥串行，防止并发双次 `Execute`。
 
-#### Scenario: 查询实例
+#### Scenario: 并发 RunOnce 不双次 Execute
 
-- **WHEN** 调用 `GetInstance` 传入有效 `EntityRef`
-- **THEN** 返回当前 `EntityInstance` 与可查询 journal
+- **WHEN** 两个 goroutine 同时对同一 `entity_id` 调用 `RunOnce`
+- **THEN** 同一 hop 的 `Execute` 至多产生一条 `COMMITTED` journal
 
-#### Scenario: 取消后拒绝执行
-
-- **WHEN** 实例 `status` 为 `CANCELLED`
-- **THEN** Scheduler 不再调度该实例的新 hop
+## MODIFIED Requirements
 
 ### Requirement: ExecutionRecord 幂等键
 
@@ -58,32 +52,3 @@ TBD - created by archiving change add-dag-engine. Update Purpose after archive.
 
 - **WHEN** `update` snapshot 的 `type_key` 不在 `output_type_keys` 中
 - **THEN** 返回 `ErrTypeMismatch`，不写入 journal
-
-### Requirement: SideEffectClass 一期约束
-
-系统 SHALL 支持 `SIDE_EFFECT_NONE` 与 `SIDE_EFFECT_IDEMPOTENT`。`SIDE_EFFECT_EXTERNAL` SHALL 返回 `ErrUnsupportedSideEffect`。
-
-#### Scenario: IDEMPOTENT 要求业务幂等
-
-- **WHEN** unit 标记为 `SIDE_EFFECT_IDEMPOTENT` 且 Execute 因崩溃被调用两次
-- **THEN** 框架保证至多一次 `COMMITTED`；业务外部副作用须通过幂等键去重
-
-### Requirement: 黄金路径集成测试
-
-内存 MVP SHALL 提供集成测试，覆盖：Start → COMPUTE → WAIT → COMPUTE（含崩溃重试）→ Spawn → JOIN → TERMINAL SUCCESS。
-
-#### Scenario: charge 崩溃重试无重复提交
-
-- **WHEN** 集成测试在 charge 节点第一次 Execute 后模拟崩溃
-- **AND** 重启 Scheduler 后重试
-- **THEN** 仅存在一条 charge 的 `NODE_COMMITTED` journal，sequence 连续无跳号
-
-### Requirement: 同实例 hop 串行
-
-`Engine` SHALL 对同一 `entity_id` 的 `RunOnce` hop 处理与 `DeliverSignal` 互斥串行，防止并发双次 `Execute`。
-
-#### Scenario: 并发 RunOnce 不双次 Execute
-
-- **WHEN** 两个 goroutine 同时对同一 `entity_id` 调用 `RunOnce`
-- **THEN** 同一 hop 的 `Execute` 至多产生一条 `COMMITTED` journal
-

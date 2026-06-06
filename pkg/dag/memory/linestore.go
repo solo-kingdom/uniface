@@ -139,6 +139,9 @@ func (s *LineStore) CommitHop(ctx context.Context, commit *dagv1.HopCommit) erro
 	}
 	for _, j := range rec.journal {
 		if j.IdempotencyKey == commit.IdempotencyKey && j.Kind == commit.JournalKind {
+			if commit.JournalKind == dagv1.JournalKind_JOURNAL_KIND_COMPENSATION_COMMITTED {
+				reconcileSagaPop(rec, commit)
+			}
 			return nil
 		}
 	}
@@ -158,7 +161,7 @@ func (s *LineStore) CommitHop(ctx context.Context, commit *dagv1.HopCommit) erro
 			rec.snapshot.Sequence = inst.Sequence
 		}
 	case dagv1.JournalKind_JOURNAL_KIND_COMPENSATION_COMMITTED:
-		// saga pop handled by scheduler before commit
+		popSagaStack(rec)
 	default:
 		if commit.OutputSnapshot != nil {
 			inst.Sequence++
@@ -326,6 +329,36 @@ func (s *LineStore) PushSagaFrame(ref *dagv1.EntityRef, frame *dagv1.Compensatio
 	return nil
 }
 
+func (s *LineStore) UpdateExecutionAttempt(ctx context.Context, idempotencyKey string, attempt int32) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.closed {
+		return dag.ErrStoreClosed
+	}
+	rec, ok := s.executions[idempotencyKey]
+	if !ok {
+		return nil
+	}
+	rec.Attempt = attempt
+	return nil
+}
+
+func (s *LineStore) AdvanceInstanceNode(ctx context.Context, ref *dagv1.EntityRef, nodeID string, status dagv1.InstanceStatus) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.closed {
+		return dag.ErrStoreClosed
+	}
+	rec, err := s.getRecordLocked(ref)
+	if err != nil {
+		return err
+	}
+	rec.instance.CurrentNodeId = nodeID
+	rec.instance.Status = status
+	rec.instance.UpdatedAt = timestamppb.Now()
+	return nil
+}
+
 func (s *LineStore) UpdateInstanceStatus(ref *dagv1.EntityRef, status dagv1.InstanceStatus) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -390,6 +423,23 @@ func cloneExecution(rec *dagv1.ExecutionRecord) *dagv1.ExecutionRecord {
 	}
 	out := *rec
 	return &out
+}
+
+func popSagaStack(rec *instanceRecord) {
+	if rec.saga == nil || len(rec.saga.Stack) == 0 {
+		return
+	}
+	rec.saga.Stack = rec.saga.Stack[:len(rec.saga.Stack)-1]
+}
+
+func reconcileSagaPop(rec *instanceRecord, commit *dagv1.HopCommit) {
+	if rec.saga == nil || len(rec.saga.Stack) == 0 {
+		return
+	}
+	top := rec.saga.Stack[len(rec.saga.Stack)-1]
+	if top.NodeId == commit.NodeId && top.ForwardSequence == commit.InputSequence {
+		popSagaStack(rec)
+	}
 }
 
 func cloneSaga(s *dagv1.SagaState) *dagv1.SagaState {

@@ -12,22 +12,24 @@ import (
 
 // Registry 内存注册表实现。
 type Registry struct {
-	mu        sync.RWMutex
-	types     map[string]*dagv1.EntityTypeRegistration
-	graphs    map[string]*dagv1.GraphSpec
-	units     map[string]*dagv1.ComputeUnitDef
-	unitImpls map[string]dag.ComputeUnit
-	compImpls map[string]dag.Compensator
-	closed    bool
+	mu           sync.RWMutex
+	types        map[string]*dagv1.EntityTypeRegistration
+	graphs       map[string]*dagv1.GraphSpec
+	latestGraphs map[string]*dagv1.GraphVersion
+	units        map[string]*dagv1.ComputeUnitDef
+	unitImpls    map[string]dag.ComputeUnit
+	compImpls    map[string]dag.Compensator
+	closed       bool
 }
 
 func NewRegistry() *Registry {
 	return &Registry{
-		types:     make(map[string]*dagv1.EntityTypeRegistration),
-		graphs:    make(map[string]*dagv1.GraphSpec),
-		units:     make(map[string]*dagv1.ComputeUnitDef),
-		unitImpls: make(map[string]dag.ComputeUnit),
-		compImpls: make(map[string]dag.Compensator),
+		types:        make(map[string]*dagv1.EntityTypeRegistration),
+		graphs:       make(map[string]*dagv1.GraphSpec),
+		latestGraphs: make(map[string]*dagv1.GraphVersion),
+		units:        make(map[string]*dagv1.ComputeUnitDef),
+		unitImpls:    make(map[string]dag.ComputeUnit),
+		compImpls:    make(map[string]dag.Compensator),
 	}
 }
 
@@ -75,7 +77,37 @@ func (r *Registry) RegisterGraph(spec *dagv1.GraphSpec) error {
 		return dag.ErrStoreClosed
 	}
 	r.graphs[graphKey(spec.Version)] = spec
+	r.latestGraphs[spec.Version.GraphId] = &dagv1.GraphVersion{
+		GraphId: spec.Version.GraphId,
+		Version: spec.Version.Version,
+	}
 	return nil
+}
+
+func (r *Registry) GetLatestGraphVersion(graphID string) (*dagv1.GraphVersion, error) {
+	if graphID == "" {
+		return nil, dag.ErrInvalidGraph
+	}
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	latest, ok := r.latestGraphs[graphID]
+	if !ok {
+		return nil, dag.ErrInvalidGraph
+	}
+	out := *latest
+	return &out, nil
+}
+
+func (r *Registry) ResolveGraphForInstance(inst *dagv1.EntityInstance) (*dagv1.GraphSpec, error) {
+	if inst == nil || inst.GraphVersion == nil || inst.GraphVersion.GraphId == "" {
+		return nil, dag.ErrInvalidGraph
+	}
+	latest, err := r.GetLatestGraphVersion(inst.GraphVersion.GraphId)
+	if err != nil {
+		return nil, err
+	}
+	version := graph.ResolveGraphVersion(inst, latest)
+	return r.GetGraph(version)
 }
 
 func (r *Registry) GetGraph(version *dagv1.GraphVersion) (*dagv1.GraphSpec, error) {

@@ -85,6 +85,8 @@ func ResolveGraphVersion(inst *dagv1.EntityInstance, latest *dagv1.GraphVersion)
 	switch inst.GraphPinPolicy {
 	case dagv1.GraphPinPolicy_GRAPH_PIN_ON_START, dagv1.GraphPinPolicy_GRAPH_PIN_POLICY_UNSPECIFIED:
 		return inst.GraphVersion
+	case dagv1.GraphPinPolicy_GRAPH_PIN_ON_NODE:
+		return latest
 	default:
 		return latest
 	}

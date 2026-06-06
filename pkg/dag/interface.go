@@ -60,6 +60,7 @@ type WaitingInstance struct {
 	Deadline              time.Time
 	OnTimeoutTargetNodeID string
 	SignalName            string
+	AcceptedSignals       []string
 }
 
 // Engine DAG 执行引擎。
