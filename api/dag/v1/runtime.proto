@@ -1,0 +1,93 @@
+syntax = "proto3";
+
+package dag.v1;
+
+option go_package = "github.com/solo-kingdom/uniface/api/dag/v1;dagv1";
+
+import "google/protobuf/any.proto";
+import "google/protobuf/timestamp.proto";
+import "common.proto";
+import "entity.proto";
+import "saga.proto";
+
+// ExecutionStatus 执行记录状态。
+enum ExecutionStatus {
+  EXECUTION_STATUS_UNSPECIFIED = 0;
+  EXECUTION_STATUS_PENDING = 1;
+  EXECUTION_STATUS_RUNNING = 2;
+  EXECUTION_STATUS_COMMITTED = 3;
+  EXECUTION_STATUS_FAILED = 4;
+}
+
+// JournalKind Journal 条目类型。
+enum JournalKind {
+  JOURNAL_KIND_UNSPECIFIED = 0;
+  JOURNAL_KIND_NODE_COMMITTED = 1;
+  JOURNAL_KIND_SIGNAL_RECEIVED = 2;
+  JOURNAL_KIND_SPAWNED = 3;
+  JOURNAL_KIND_JOIN_COMMITTED = 4;
+  JOURNAL_KIND_COMPENSATION_COMMITTED = 5;
+}
+
+// StartInstanceRequest 启动实例请求。
+message StartInstanceRequest {
+  EntityRef ref = 1;
+  EntityTypeKey type_key = 2;
+  google.protobuf.Any initial_payload = 3;
+  GraphVersion graph_version = 4;
+  GraphPinPolicy graph_pin_policy = 5;
+  string correlation_id = 6;
+  EntityRef parent = 7;
+}
+
+// ExecutionRecord hop 执行记录。
+message ExecutionRecord {
+  string idempotency_key = 1;
+  string entity_id = 2;
+  string node_id = 3;
+  int64 input_sequence = 4;
+  ExecutionStatus status = 5;
+  int32 attempt = 6;
+  google.protobuf.Timestamp started_at = 7;
+  google.protobuf.Timestamp committed_at = 8;
+}
+
+// SignalDelivery 信号投递。
+message SignalDelivery {
+  string entity_id = 1;
+  string signal_name = 2;
+  string delivery_id = 3;
+  google.protobuf.Any payload = 4;
+}
+
+// LineJournalEntry 线 Journal 条目。
+message LineJournalEntry {
+  int64 journal_sequence = 1;
+  JournalKind kind = 2;
+  string node_id = 3;
+  int64 input_sequence = 4;
+  int64 output_sequence = 5;
+  EntitySnapshot output_snapshot = 6;
+  string idempotency_key = 7;
+  google.protobuf.Timestamp committed_at = 8;
+  string signal_name = 9;
+  string delivery_id = 10;
+  EntityRef spawned_ref = 11;
+  CompensationFrame compensation_frame = 12;
+}
+
+// HopCommit hop 提交载荷。
+message HopCommit {
+  EntityRef ref = 1;
+  string node_id = 2;
+  int64 input_sequence = 3;
+  string idempotency_key = 4;
+  EntitySnapshot output_snapshot = 5;
+  string next_node_id = 6;
+  InstanceStatus next_status = 7;
+  SagaState saga_delta = 8;
+  repeated EntityRef spawned = 9;
+  JournalKind journal_kind = 10;
+  string signal_name = 11;
+  string delivery_id = 12;
+}

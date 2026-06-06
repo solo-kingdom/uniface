@@ -1,0 +1,24 @@
+syntax = "proto3";
+
+package dag.v1;
+
+option go_package = "github.com/solo-kingdom/uniface/api/dag/v1;dagv1";
+
+import "common.proto";
+
+// SideEffectClass 副作用分类。
+enum SideEffectClass {
+  SIDE_EFFECT_UNSPECIFIED = 0;
+  SIDE_EFFECT_NONE = 1;
+  SIDE_EFFECT_IDEMPOTENT = 2;
+  SIDE_EFFECT_EXTERNAL = 3;
+}
+
+// ComputeUnitDef 计算单元定义。
+message ComputeUnitDef {
+  string unit_id = 1;
+  EntityTypeKey input_type_key = 2;
+  repeated EntityTypeKey output_type_keys = 3;
+  SideEffectClass side_effect_class = 4;
+  RetryPolicy retry_policy = 5;
+}

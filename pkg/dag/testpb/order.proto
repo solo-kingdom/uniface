@@ -1,0 +1,12 @@
+syntax = "proto3";
+
+package dag.testpb;
+
+option go_package = "github.com/solo-kingdom/uniface/pkg/dag/testpb;testpb";
+
+message Order {
+  string order_id = 1;
+  double amount = 2;
+  string status = 3;
+  bool approved = 4;
+}

@@ -1,4 +1,4 @@
-.PHONY: mod build test tag clean
+.PHONY: mod build test tag clean proto
 
 # Module paths
 ROOT_MODULE := .
@@ -21,6 +21,12 @@ GOFLAGS := -v
 
 .PHONY: all
 all: mod build
+
+# Generate protobuf code
+.PHONY: proto
+proto:
+	@echo ">>> Generating protobuf code"
+	buf generate
 
 # Run go mod tidy for all modules
 .PHONY: mod
@@ -78,6 +84,7 @@ help:
 	@echo "Usage: make [target]"
 	@echo ""
 	@echo "Targets:"
+	@echo "  proto         Generate protobuf code from api/dag/v1"
 	@echo "  mod           Run go mod tidy for all modules"
 	@echo "  build         Build all modules"
 	@echo "  test          Run tests for all modules"

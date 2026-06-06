@@ -1,0 +1,69 @@
+syntax = "proto3";
+
+package dag.v1;
+
+option go_package = "github.com/solo-kingdom/uniface/api/dag/v1;dagv1";
+
+import "google/protobuf/any.proto";
+import "google/protobuf/timestamp.proto";
+import "common.proto";
+
+// EntitySnapshot 实体快照。
+message EntitySnapshot {
+  EntityRef ref = 1;
+  EntityTypeKey type_key = 2;
+  int64 sequence = 3;
+  google.protobuf.Any payload = 4;
+}
+
+// EntityInstance 实体实例元数据。
+message EntityInstance {
+  EntityRef ref = 1;
+  EntityTypeKey type_key = 2;
+  InstanceStatus status = 3;
+  int64 sequence = 4;
+  string current_node_id = 5;
+  GraphVersion graph_version = 6;
+  GraphPinPolicy graph_pin_policy = 7;
+  EntityRef parent = 8;
+  string correlation_id = 9;
+  google.protobuf.Timestamp created_at = 10;
+  google.protobuf.Timestamp updated_at = 11;
+}
+
+// WaitSignal 等待外部信号。
+message WaitSignal {
+  string signal_name = 1;
+  repeated string accepted_signals = 2;
+  google.protobuf.Timestamp deadline = 3;
+  string on_timeout_target_node_id = 4;
+}
+
+// SpawnSpec 子实例创建规格。
+message SpawnSpec {
+  EntityRef ref = 1;
+  EntityTypeKey type_key = 2;
+  google.protobuf.Any initial_payload = 3;
+  GraphVersion graph = 4;
+  string correlation_id = 5;
+}
+
+// EntityMutation 计算单元返回的变更意图。
+message EntityMutation {
+  oneof intent {
+    EntitySnapshot update = 1;
+    SpawnList spawn = 2;
+    WaitSignal wait = 3;
+    TerminalOutcome complete = 4;
+    FailIntent fail = 5;
+  }
+}
+
+message SpawnList {
+  repeated SpawnSpec specs = 1;
+}
+
+message FailIntent {
+  string reason = 1;
+  bool trigger_compensation = 2;
+}

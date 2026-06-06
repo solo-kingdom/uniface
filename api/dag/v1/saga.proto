@@ -1,0 +1,38 @@
+syntax = "proto3";
+
+package dag.v1;
+
+option go_package = "github.com/solo-kingdom/uniface/api/dag/v1;dagv1";
+
+import "google/protobuf/any.proto";
+
+// CompensationFrame 补偿栈帧。
+message CompensationFrame {
+  string node_id = 1;
+  string unit_id = 2;
+  string compensator_unit_id = 3;
+  int64 forward_sequence = 4;
+  google.protobuf.Any forward_snapshot = 5;
+}
+
+// CompensationRecord 补偿执行记录。
+message CompensationRecord {
+  string idempotency_key = 1;
+  string compensator_unit_id = 2;
+  int64 forward_sequence = 3;
+  string status = 4;
+}
+
+// CompensationContext 补偿上下文。
+message CompensationContext {
+  string entity_id = 1;
+  string node_id = 2;
+  int64 forward_sequence = 3;
+  google.protobuf.Any snapshot = 4;
+}
+
+// SagaState Saga 持久化状态。
+message SagaState {
+  repeated CompensationFrame stack = 1;
+  repeated CompensationRecord records = 2;
+}

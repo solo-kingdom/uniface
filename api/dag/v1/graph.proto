@@ -1,0 +1,98 @@
+syntax = "proto3";
+
+package dag.v1;
+
+option go_package = "github.com/solo-kingdom/uniface/api/dag/v1;dagv1";
+
+import "common.proto";
+
+// NodeKind 图节点种类。
+enum NodeKind {
+  NODE_KIND_UNSPECIFIED = 0;
+  NODE_KIND_COMPUTE = 1;
+  NODE_KIND_WAIT = 2;
+  NODE_KIND_JOIN = 3;
+  NODE_KIND_TERMINAL = 4;
+}
+
+// CompareOp 字段比较操作符。
+enum CompareOp {
+  COMPARE_OP_UNSPECIFIED = 0;
+  COMPARE_OP_EQ = 1;
+  COMPARE_OP_NE = 2;
+  COMPARE_OP_GT = 3;
+  COMPARE_OP_GTE = 4;
+  COMPARE_OP_LT = 5;
+  COMPARE_OP_LTE = 6;
+}
+
+// JoinPolicy Join 策略。
+enum JoinPolicy {
+  JOIN_POLICY_UNSPECIFIED = 0;
+  JOIN_ALL_SUCCESS = 1;
+  JOIN_ANY_SUCCESS = 2;
+}
+
+// FieldPredicate 基于 payload 字段的条件。
+message FieldPredicate {
+  string field_path = 1;
+  CompareOp op = 2;
+  string value = 3;
+}
+
+// Condition 路由条件。
+message Condition {
+  oneof kind {
+    bool always = 1;
+    FieldPredicate field_predicate = 2;
+  }
+}
+
+// Transition 出边。
+message Transition {
+  string target_node_id = 1;
+  Condition condition = 2;
+  int32 priority = 3;
+}
+
+// WaitNodeConfig WAIT 节点配置。
+message WaitNodeConfig {
+  string signal_name = 1;
+  repeated string accepted_signals = 2;
+  int64 default_deadline_seconds = 3;
+  string on_timeout_target_node_id = 4;
+}
+
+// JoinBarrier Join 屏障。
+message JoinBarrier {
+  oneof target {
+    string child_entity_id = 1;
+    string correlation_id = 2;
+  }
+}
+
+// JoinSpec JOIN 节点配置。
+message JoinSpec {
+  repeated JoinBarrier barriers = 1;
+  JoinPolicy policy = 2;
+  bool fail_parent_on_child_failure = 3;
+}
+
+// NodeDef 图节点定义。
+message NodeDef {
+  string node_id = 1;
+  NodeKind kind = 2;
+  string unit_id = 3;
+  string compensator_unit_id = 4;
+  repeated Transition transitions = 5;
+  TerminalOutcome terminal_outcome = 6;
+  WaitNodeConfig wait_config = 7;
+  JoinSpec join_spec = 8;
+}
+
+// GraphSpec 图规格。
+message GraphSpec {
+  GraphVersion version = 1;
+  string entry_node_id = 2;
+  map<string, NodeDef> nodes = 3;
+}
