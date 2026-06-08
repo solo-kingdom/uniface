@@ -3,6 +3,7 @@ package memory
 import (
 	"context"
 	"fmt"
+	"strings"
 	"sync"
 	"time"
 
@@ -115,15 +116,19 @@ func (e *Engine) DeliverSignal(ctx context.Context, delivery *dagv1.SignalDelive
 	if err != nil {
 		return err
 	}
-	nextNode, err := e.resolver.Resolve(ctx, spec, inst.CurrentNodeId, snap)
+	outSnap := snap
+	if entity.ShouldMergeSignalPayload(node.WaitConfig) && delivery.Payload != nil {
+		outSnap, err = entity.MergeSignalPayload(snap, delivery.SignalName, delivery.Payload)
+		if err != nil {
+			return err
+		}
+	}
+	nextNode, err := graph.ResolveTransitions(node, outSnap, &graph.SignalContext{SignalName: delivery.SignalName})
 	if err != nil {
 		return err
 	}
-	if nextNode == inst.CurrentNodeId && len(node.Transitions) > 0 {
-		nextNode = node.Transitions[0].TargetNodeId
-	}
 	idem := runtime.SignalIdempotencyKey(delivery.EntityId, delivery.SignalName, delivery.DeliveryId)
-	return e.store.CommitHop(ctx, &dagv1.HopCommit{
+	commit := &dagv1.HopCommit{
 		Ref:            ref,
 		NodeId:         inst.CurrentNodeId,
 		InputSequence:  inst.Sequence,
@@ -133,7 +138,11 @@ func (e *Engine) DeliverSignal(ctx context.Context, delivery *dagv1.SignalDelive
 		JournalKind:    dagv1.JournalKind_JOURNAL_KIND_SIGNAL_RECEIVED,
 		SignalName:     delivery.SignalName,
 		DeliveryId:     delivery.DeliveryId,
-	})
+	}
+	if outSnap != snap {
+		commit.OutputSnapshot = outSnap
+	}
+	return e.store.CommitHop(ctx, commit)
 }
 
 func signalNameAccepted(waiting *dag.WaitingInstance, name string) bool {
@@ -260,6 +269,9 @@ func (s *Scheduler) processInstance(ctx context.Context, ref *dagv1.EntityRef) e
 	if inst.Status == dagv1.InstanceStatus_INSTANCE_STATUS_COMPENSATING {
 		return s.processCompensation(ctx, inst)
 	}
+	if inst.Status == dagv1.InstanceStatus_INSTANCE_STATUS_FAILED {
+		return nil
+	}
 	spec, err := s.reg.ResolveGraphForInstance(inst)
 	if err != nil {
 		return err
@@ -327,15 +339,27 @@ func (s *Scheduler) processCompute(ctx context.Context, inst *dagv1.EntityInstan
 
 func (s *Scheduler) handleExecuteError(ctx context.Context, inst *dagv1.EntityInstance, node *dagv1.NodeDef,
 	record *dagv1.ExecutionRecord, execErr error) error {
-	maxAttempts := s.opts.DefaultRetryPolicy.MaxAttempts
-	if maxAttempts <= 0 {
-		maxAttempts = 3
-	}
+	maxAttempts := s.maxAttemptsForUnit(node.UnitId)
 	if record.Attempt >= int32(maxAttempts) {
 		return execErr
 	}
 	record.Attempt++
 	return s.store.UpdateExecutionAttempt(ctx, record.IdempotencyKey, record.Attempt)
+}
+
+func (s *Scheduler) maxAttemptsForUnit(unitID string) int {
+	maxAttempts := s.opts.DefaultRetryPolicy.MaxAttempts
+	if maxAttempts <= 0 {
+		maxAttempts = 3
+	}
+	if unitID == "" {
+		return maxAttempts
+	}
+	unitDef, err := s.reg.GetComputeUnit(unitID)
+	if err != nil || unitDef.RetryPolicy == nil || unitDef.RetryPolicy.MaxAttempts <= 0 {
+		return maxAttempts
+	}
+	return int(unitDef.RetryPolicy.MaxAttempts)
 }
 
 func (s *Scheduler) applyMutation(ctx context.Context, inst *dagv1.EntityInstance, spec *dagv1.GraphSpec, node *dagv1.NodeDef,
@@ -394,6 +418,9 @@ func (s *Scheduler) commitCompute(ctx context.Context, inst *dagv1.EntityInstanc
 	}
 	nextNode, err := s.resolver.Resolve(ctx, spec, node.NodeId, outSnap)
 	if err != nil {
+		if err == dag.ErrNoTransition {
+			return s.failNoTransition(ctx, inst, node, err.Error())
+		}
 		return err
 	}
 	nextStatus := dagv1.InstanceStatus_INSTANCE_STATUS_RUNNING
@@ -530,8 +557,11 @@ func (s *Scheduler) processJoin(ctx context.Context, inst *dagv1.EntityInstance,
 	if err != nil {
 		return err
 	}
-	nextNode, err := graph.ResolveTransitions(node, snap)
+	nextNode, err := graph.ResolveTransitions(node, snap, nil)
 	if err != nil {
+		if err == dag.ErrNoTransition {
+			return s.failNoTransition(ctx, inst, node, err.Error())
+		}
 		return err
 	}
 	idem := runtime.HopIdempotencyKey(inst.Ref.EntityId, node.NodeId, inst.Sequence)
@@ -548,6 +578,31 @@ func (s *Scheduler) processJoin(ctx context.Context, inst *dagv1.EntityInstance,
 }
 
 func (s *Scheduler) checkJoinBarriers(ctx context.Context, inst *dagv1.EntityInstance, join *dagv1.JoinSpec) (ready bool, childFailed bool, err error) {
+	if join == nil {
+		return false, false, nil
+	}
+	if len(join.Barriers) > 0 {
+		ok, failed, err := s.checkStaticBarriers(ctx, inst, join)
+		if err != nil || failed || !ok {
+			return ok, failed, err
+		}
+	}
+	for _, db := range join.DynamicBarriers {
+		ok, failed, err := s.checkDynamicBarrier(ctx, inst, join, db)
+		if err != nil {
+			return false, false, err
+		}
+		if failed {
+			return false, true, nil
+		}
+		if !ok {
+			return false, false, nil
+		}
+	}
+	return true, false, nil
+}
+
+func (s *Scheduler) checkStaticBarriers(ctx context.Context, inst *dagv1.EntityInstance, join *dagv1.JoinSpec) (ready bool, childFailed bool, err error) {
 	completed := 0
 	for _, b := range join.Barriers {
 		childID := ""
@@ -586,6 +641,82 @@ func (s *Scheduler) checkJoinBarriers(ctx context.Context, inst *dagv1.EntityIns
 	}
 }
 
+func (s *Scheduler) checkDynamicBarrier(ctx context.Context, inst *dagv1.EntityInstance, join *dagv1.JoinSpec, db *dagv1.DynamicJoinBarrier) (ready bool, childFailed bool, err error) {
+	if db == nil {
+		return true, false, nil
+	}
+	policy := db.Policy
+	if policy == dagv1.JoinPolicy_JOIN_POLICY_UNSPECIFIED {
+		policy = join.Policy
+	}
+	children, err := s.store.ListChildrenByCorrelationPrefix(inst.Ref, db.CorrelationPrefix)
+	if err != nil {
+		return false, false, err
+	}
+	expected := int(db.ExpectedCount)
+	if expected == 0 {
+		spawned, err := s.store.ListSpawnedFromJournal(ctx, inst.Ref)
+		if err != nil {
+			return false, false, err
+		}
+		for _, ref := range spawned {
+			child, err := s.store.GetInstance(ctx, ref)
+			if err != nil {
+				continue
+			}
+			if db.CorrelationPrefix == "" || strings.HasPrefix(child.CorrelationId, db.CorrelationPrefix) {
+				expected++
+			}
+		}
+		if expected == 0 {
+			expected = len(children)
+		}
+	}
+	if len(children) < expected {
+		return false, false, nil
+	}
+	completed := 0
+	failedCount := 0
+	for _, child := range children {
+		switch child.Status {
+		case dagv1.InstanceStatus_INSTANCE_STATUS_COMPLETED:
+			completed++
+		case dagv1.InstanceStatus_INSTANCE_STATUS_FAILED, dagv1.InstanceStatus_INSTANCE_STATUS_COMPENSATED:
+			failedCount++
+			if join.FailParentOnChildFailure {
+				return false, true, nil
+			}
+		default:
+			return false, false, nil
+		}
+	}
+	switch policy {
+	case dagv1.JoinPolicy_JOIN_ANY_SUCCESS:
+		return completed > 0, false, nil
+	default:
+		return completed >= expected && failedCount == 0, false, nil
+	}
+}
+
+func (s *Scheduler) failNoTransition(ctx context.Context, inst *dagv1.EntityInstance, node *dagv1.NodeDef, reason string) error {
+	snap, err := s.store.GetSnapshot(ctx, inst.Ref)
+	if err != nil {
+		return err
+	}
+	idem := runtime.HopIdempotencyKey(inst.Ref.EntityId, node.NodeId, inst.Sequence)
+	return s.store.CommitHop(ctx, &dagv1.HopCommit{
+		Ref:            inst.Ref,
+		NodeId:         node.NodeId,
+		InputSequence:  inst.Sequence,
+		IdempotencyKey: idem,
+		OutputSnapshot: snap,
+		NextNodeId:     node.NodeId,
+		NextStatus:     dagv1.InstanceStatus_INSTANCE_STATUS_FAILED,
+		JournalKind:    dagv1.JournalKind_JOURNAL_KIND_NODE_COMMITTED,
+		FailureReason:  reason,
+	})
+}
+
 func (s *Scheduler) findChildByCorrelation(ctx context.Context, parent *dagv1.EntityRef, correlationID string) (string, error) {
 	ref, err := s.store.FindChildByCorrelation(parent, correlationID)
 	if err != nil {
@@ -602,12 +733,33 @@ func (s *Scheduler) handleFail(ctx context.Context, inst *dagv1.EntityInstance, 
 }
 
 func (s *Scheduler) processCompensation(ctx context.Context, inst *dagv1.EntityInstance) error {
+	const maxFrames = 100
+	for i := 0; i < maxFrames; i++ {
+		saga, err := s.store.GetSagaState(ctx, inst.Ref)
+		if err != nil {
+			return err
+		}
+		if len(saga.Stack) == 0 {
+			return s.finishCompensation(ctx, inst)
+		}
+		inst, err = s.store.GetInstance(ctx, inst.Ref)
+		if err != nil {
+			return err
+		}
+		if err := s.compensateOneFrame(ctx, inst); err != nil {
+			return err
+		}
+	}
+	return fmt.Errorf("compensation exceeded %d frames", maxFrames)
+}
+
+func (s *Scheduler) compensateOneFrame(ctx context.Context, inst *dagv1.EntityInstance) error {
 	saga, err := s.store.GetSagaState(ctx, inst.Ref)
 	if err != nil {
 		return err
 	}
 	if len(saga.Stack) == 0 {
-		return s.store.UpdateInstanceStatus(inst.Ref, dagv1.InstanceStatus_INSTANCE_STATUS_COMPENSATED)
+		return nil
 	}
 	frame := saga.Stack[len(saga.Stack)-1]
 	idem := runtime.CompensationIdempotencyKey(inst.Ref.EntityId, frame.ForwardSequence, frame.CompensatorUnitId)
@@ -616,6 +768,19 @@ func (s *Scheduler) processCompensation(ctx context.Context, inst *dagv1.EntityI
 		if j.IdempotencyKey == idem && j.Kind == dagv1.JournalKind_JOURNAL_KIND_COMPENSATION_COMMITTED {
 			return nil
 		}
+	}
+	record, err := s.store.CreateExecution(ctx, &dagv1.ExecutionRecord{
+		IdempotencyKey: idem,
+		EntityId:       inst.Ref.EntityId,
+		NodeId:         frame.NodeId,
+		InputSequence:  frame.ForwardSequence,
+		Status:         dagv1.ExecutionStatus_EXECUTION_STATUS_RUNNING,
+	})
+	if err != nil {
+		return err
+	}
+	if record.Status == dagv1.ExecutionStatus_EXECUTION_STATUS_COMMITTED {
+		return nil
 	}
 	comp, err := s.reg.GetCompensator(frame.CompensatorUnitId)
 	if err != nil {
@@ -638,7 +803,7 @@ func (s *Scheduler) processCompensation(ctx context.Context, inst *dagv1.EntityI
 		Snapshot:        snapshotPayload,
 	}
 	if err := comp.Compensate(ctx, compCtx); err != nil {
-		return err
+		return s.handleCompensationError(ctx, frame, record, err)
 	}
 	return s.store.CommitHop(ctx, &dagv1.HopCommit{
 		Ref:            inst.Ref,
@@ -649,6 +814,54 @@ func (s *Scheduler) processCompensation(ctx context.Context, inst *dagv1.EntityI
 		NextStatus:     dagv1.InstanceStatus_INSTANCE_STATUS_COMPENSATING,
 		JournalKind:    dagv1.JournalKind_JOURNAL_KIND_COMPENSATION_COMMITTED,
 	})
+}
+
+func (s *Scheduler) handleCompensationError(ctx context.Context, frame *dagv1.CompensationFrame,
+	record *dagv1.ExecutionRecord, compErr error) error {
+	maxAttempts := s.maxAttemptsForUnit(frame.CompensatorUnitId)
+	if record.Attempt >= int32(maxAttempts) {
+		ref := &dagv1.EntityRef{EntityId: record.EntityId}
+		if err := s.store.UpdateInstanceStatus(ref, dagv1.InstanceStatus_INSTANCE_STATUS_FAILED); err != nil {
+			return err
+		}
+		return compErr
+	}
+	record.Attempt++
+	return s.store.UpdateExecutionAttempt(ctx, record.IdempotencyKey, record.Attempt)
+}
+
+func (s *Scheduler) finishCompensation(ctx context.Context, inst *dagv1.EntityInstance) error {
+	if err := s.store.UpdateInstanceStatus(inst.Ref, dagv1.InstanceStatus_INSTANCE_STATUS_COMPENSATED); err != nil {
+		return err
+	}
+	spec, err := s.reg.ResolveGraphForInstance(inst)
+	if err != nil {
+		return err
+	}
+	node, ok := spec.Nodes[inst.CurrentNodeId]
+	if !ok || len(node.Transitions) == 0 {
+		return nil
+	}
+	snap, err := s.store.GetSnapshot(ctx, inst.Ref)
+	if err != nil {
+		return err
+	}
+	nextNode, err := graph.ResolveTransitions(node, snap, nil)
+	if err != nil {
+		return nil
+	}
+	nextNodeDef, ok := spec.Nodes[nextNode]
+	if !ok {
+		return nil
+	}
+	if nextNodeDef.Kind != dagv1.NodeKind_NODE_KIND_TERMINAL {
+		return nil
+	}
+	updated, err := s.store.GetInstance(ctx, inst.Ref)
+	if err != nil {
+		return err
+	}
+	return s.commitTerminal(ctx, updated, nextNodeDef)
 }
 
 func (s *Scheduler) commitTerminal(ctx context.Context, inst *dagv1.EntityInstance, node *dagv1.NodeDef) error {
@@ -688,6 +901,9 @@ func (s *Scheduler) commitTerminalOutcome(ctx context.Context, inst *dagv1.Entit
 func (s *Scheduler) advanceAfterCommit(ctx context.Context, inst *dagv1.EntityInstance, spec *dagv1.GraphSpec, node *dagv1.NodeDef, snap *dagv1.EntitySnapshot) error {
 	nextNode, err := s.resolver.Resolve(ctx, spec, node.NodeId, snap)
 	if err != nil {
+		if err == dag.ErrNoTransition {
+			return s.failNoTransition(ctx, inst, node, err.Error())
+		}
 		return err
 	}
 	if err := s.store.AdvanceInstanceNode(ctx, inst.Ref, nextNode, dagv1.InstanceStatus_INSTANCE_STATUS_RUNNING); err != nil {

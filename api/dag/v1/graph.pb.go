@@ -250,6 +250,59 @@ func (x *FieldPredicate) GetValue() string {
 	return ""
 }
 
+// SignalPredicate 基于信号名与 payload 的条件。
+type SignalPredicate struct {
+	state            protoimpl.MessageState `protogen:"open.v1"`
+	SignalName       string                 `protobuf:"bytes,1,opt,name=signal_name,json=signalName,proto3" json:"signal_name,omitempty"`
+	PayloadPredicate *FieldPredicate        `protobuf:"bytes,2,opt,name=payload_predicate,json=payloadPredicate,proto3" json:"payload_predicate,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
+}
+
+func (x *SignalPredicate) Reset() {
+	*x = SignalPredicate{}
+	mi := &file_graph_proto_msgTypes[1]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SignalPredicate) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SignalPredicate) ProtoMessage() {}
+
+func (x *SignalPredicate) ProtoReflect() protoreflect.Message {
+	mi := &file_graph_proto_msgTypes[1]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SignalPredicate.ProtoReflect.Descriptor instead.
+func (*SignalPredicate) Descriptor() ([]byte, []int) {
+	return file_graph_proto_rawDescGZIP(), []int{1}
+}
+
+func (x *SignalPredicate) GetSignalName() string {
+	if x != nil {
+		return x.SignalName
+	}
+	return ""
+}
+
+func (x *SignalPredicate) GetPayloadPredicate() *FieldPredicate {
+	if x != nil {
+		return x.PayloadPredicate
+	}
+	return nil
+}
+
 // Condition 路由条件。
 type Condition struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
@@ -257,6 +310,7 @@ type Condition struct {
 	//
 	//	*Condition_Always
 	//	*Condition_FieldPredicate
+	//	*Condition_SignalPredicate
 	Kind          isCondition_Kind `protobuf_oneof:"kind"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -264,7 +318,7 @@ type Condition struct {
 
 func (x *Condition) Reset() {
 	*x = Condition{}
-	mi := &file_graph_proto_msgTypes[1]
+	mi := &file_graph_proto_msgTypes[2]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -276,7 +330,7 @@ func (x *Condition) String() string {
 func (*Condition) ProtoMessage() {}
 
 func (x *Condition) ProtoReflect() protoreflect.Message {
-	mi := &file_graph_proto_msgTypes[1]
+	mi := &file_graph_proto_msgTypes[2]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -289,7 +343,7 @@ func (x *Condition) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Condition.ProtoReflect.Descriptor instead.
 func (*Condition) Descriptor() ([]byte, []int) {
-	return file_graph_proto_rawDescGZIP(), []int{1}
+	return file_graph_proto_rawDescGZIP(), []int{2}
 }
 
 func (x *Condition) GetKind() isCondition_Kind {
@@ -317,6 +371,15 @@ func (x *Condition) GetFieldPredicate() *FieldPredicate {
 	return nil
 }
 
+func (x *Condition) GetSignalPredicate() *SignalPredicate {
+	if x != nil {
+		if x, ok := x.Kind.(*Condition_SignalPredicate); ok {
+			return x.SignalPredicate
+		}
+	}
+	return nil
+}
+
 type isCondition_Kind interface {
 	isCondition_Kind()
 }
@@ -329,9 +392,15 @@ type Condition_FieldPredicate struct {
 	FieldPredicate *FieldPredicate `protobuf:"bytes,2,opt,name=field_predicate,json=fieldPredicate,proto3,oneof"`
 }
 
+type Condition_SignalPredicate struct {
+	SignalPredicate *SignalPredicate `protobuf:"bytes,3,opt,name=signal_predicate,json=signalPredicate,proto3,oneof"`
+}
+
 func (*Condition_Always) isCondition_Kind() {}
 
 func (*Condition_FieldPredicate) isCondition_Kind() {}
+
+func (*Condition_SignalPredicate) isCondition_Kind() {}
 
 // Transition 出边。
 type Transition struct {
@@ -345,7 +414,7 @@ type Transition struct {
 
 func (x *Transition) Reset() {
 	*x = Transition{}
-	mi := &file_graph_proto_msgTypes[2]
+	mi := &file_graph_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -357,7 +426,7 @@ func (x *Transition) String() string {
 func (*Transition) ProtoMessage() {}
 
 func (x *Transition) ProtoReflect() protoreflect.Message {
-	mi := &file_graph_proto_msgTypes[2]
+	mi := &file_graph_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -370,7 +439,7 @@ func (x *Transition) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Transition.ProtoReflect.Descriptor instead.
 func (*Transition) Descriptor() ([]byte, []int) {
-	return file_graph_proto_rawDescGZIP(), []int{2}
+	return file_graph_proto_rawDescGZIP(), []int{3}
 }
 
 func (x *Transition) GetTargetNodeId() string {
@@ -401,13 +470,14 @@ type WaitNodeConfig struct {
 	AcceptedSignals        []string               `protobuf:"bytes,2,rep,name=accepted_signals,json=acceptedSignals,proto3" json:"accepted_signals,omitempty"`
 	DefaultDeadlineSeconds int64                  `protobuf:"varint,3,opt,name=default_deadline_seconds,json=defaultDeadlineSeconds,proto3" json:"default_deadline_seconds,omitempty"`
 	OnTimeoutTargetNodeId  string                 `protobuf:"bytes,4,opt,name=on_timeout_target_node_id,json=onTimeoutTargetNodeId,proto3" json:"on_timeout_target_node_id,omitempty"`
+	MergeSignalPayload     *bool                  `protobuf:"varint,5,opt,name=merge_signal_payload,json=mergeSignalPayload,proto3,oneof" json:"merge_signal_payload,omitempty"`
 	unknownFields          protoimpl.UnknownFields
 	sizeCache              protoimpl.SizeCache
 }
 
 func (x *WaitNodeConfig) Reset() {
 	*x = WaitNodeConfig{}
-	mi := &file_graph_proto_msgTypes[3]
+	mi := &file_graph_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -419,7 +489,7 @@ func (x *WaitNodeConfig) String() string {
 func (*WaitNodeConfig) ProtoMessage() {}
 
 func (x *WaitNodeConfig) ProtoReflect() protoreflect.Message {
-	mi := &file_graph_proto_msgTypes[3]
+	mi := &file_graph_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -432,7 +502,7 @@ func (x *WaitNodeConfig) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use WaitNodeConfig.ProtoReflect.Descriptor instead.
 func (*WaitNodeConfig) Descriptor() ([]byte, []int) {
-	return file_graph_proto_rawDescGZIP(), []int{3}
+	return file_graph_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *WaitNodeConfig) GetSignalName() string {
@@ -463,6 +533,13 @@ func (x *WaitNodeConfig) GetOnTimeoutTargetNodeId() string {
 	return ""
 }
 
+func (x *WaitNodeConfig) GetMergeSignalPayload() bool {
+	if x != nil && x.MergeSignalPayload != nil {
+		return *x.MergeSignalPayload
+	}
+	return false
+}
+
 // JoinBarrier Join 屏障。
 type JoinBarrier struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
@@ -477,7 +554,7 @@ type JoinBarrier struct {
 
 func (x *JoinBarrier) Reset() {
 	*x = JoinBarrier{}
-	mi := &file_graph_proto_msgTypes[4]
+	mi := &file_graph_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -489,7 +566,7 @@ func (x *JoinBarrier) String() string {
 func (*JoinBarrier) ProtoMessage() {}
 
 func (x *JoinBarrier) ProtoReflect() protoreflect.Message {
-	mi := &file_graph_proto_msgTypes[4]
+	mi := &file_graph_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -502,7 +579,7 @@ func (x *JoinBarrier) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use JoinBarrier.ProtoReflect.Descriptor instead.
 func (*JoinBarrier) Descriptor() ([]byte, []int) {
-	return file_graph_proto_rawDescGZIP(), []int{4}
+	return file_graph_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *JoinBarrier) GetTarget() isJoinBarrier_Target {
@@ -546,19 +623,81 @@ func (*JoinBarrier_ChildEntityId) isJoinBarrier_Target() {}
 
 func (*JoinBarrier_CorrelationId) isJoinBarrier_Target() {}
 
+// DynamicJoinBarrier 动态 Join 屏障（correlation 前缀匹配）。
+type DynamicJoinBarrier struct {
+	state             protoimpl.MessageState `protogen:"open.v1"`
+	CorrelationPrefix string                 `protobuf:"bytes,1,opt,name=correlation_prefix,json=correlationPrefix,proto3" json:"correlation_prefix,omitempty"`
+	ExpectedCount     int32                  `protobuf:"varint,2,opt,name=expected_count,json=expectedCount,proto3" json:"expected_count,omitempty"`
+	Policy            JoinPolicy             `protobuf:"varint,3,opt,name=policy,proto3,enum=dag.v1.JoinPolicy" json:"policy,omitempty"`
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
+}
+
+func (x *DynamicJoinBarrier) Reset() {
+	*x = DynamicJoinBarrier{}
+	mi := &file_graph_proto_msgTypes[6]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DynamicJoinBarrier) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DynamicJoinBarrier) ProtoMessage() {}
+
+func (x *DynamicJoinBarrier) ProtoReflect() protoreflect.Message {
+	mi := &file_graph_proto_msgTypes[6]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DynamicJoinBarrier.ProtoReflect.Descriptor instead.
+func (*DynamicJoinBarrier) Descriptor() ([]byte, []int) {
+	return file_graph_proto_rawDescGZIP(), []int{6}
+}
+
+func (x *DynamicJoinBarrier) GetCorrelationPrefix() string {
+	if x != nil {
+		return x.CorrelationPrefix
+	}
+	return ""
+}
+
+func (x *DynamicJoinBarrier) GetExpectedCount() int32 {
+	if x != nil {
+		return x.ExpectedCount
+	}
+	return 0
+}
+
+func (x *DynamicJoinBarrier) GetPolicy() JoinPolicy {
+	if x != nil {
+		return x.Policy
+	}
+	return JoinPolicy_JOIN_POLICY_UNSPECIFIED
+}
+
 // JoinSpec JOIN 节点配置。
 type JoinSpec struct {
 	state                    protoimpl.MessageState `protogen:"open.v1"`
 	Barriers                 []*JoinBarrier         `protobuf:"bytes,1,rep,name=barriers,proto3" json:"barriers,omitempty"`
 	Policy                   JoinPolicy             `protobuf:"varint,2,opt,name=policy,proto3,enum=dag.v1.JoinPolicy" json:"policy,omitempty"`
 	FailParentOnChildFailure bool                   `protobuf:"varint,3,opt,name=fail_parent_on_child_failure,json=failParentOnChildFailure,proto3" json:"fail_parent_on_child_failure,omitempty"`
+	DynamicBarriers          []*DynamicJoinBarrier  `protobuf:"bytes,4,rep,name=dynamic_barriers,json=dynamicBarriers,proto3" json:"dynamic_barriers,omitempty"`
 	unknownFields            protoimpl.UnknownFields
 	sizeCache                protoimpl.SizeCache
 }
 
 func (x *JoinSpec) Reset() {
 	*x = JoinSpec{}
-	mi := &file_graph_proto_msgTypes[5]
+	mi := &file_graph_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -570,7 +709,7 @@ func (x *JoinSpec) String() string {
 func (*JoinSpec) ProtoMessage() {}
 
 func (x *JoinSpec) ProtoReflect() protoreflect.Message {
-	mi := &file_graph_proto_msgTypes[5]
+	mi := &file_graph_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -583,7 +722,7 @@ func (x *JoinSpec) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use JoinSpec.ProtoReflect.Descriptor instead.
 func (*JoinSpec) Descriptor() ([]byte, []int) {
-	return file_graph_proto_rawDescGZIP(), []int{5}
+	return file_graph_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *JoinSpec) GetBarriers() []*JoinBarrier {
@@ -607,6 +746,13 @@ func (x *JoinSpec) GetFailParentOnChildFailure() bool {
 	return false
 }
 
+func (x *JoinSpec) GetDynamicBarriers() []*DynamicJoinBarrier {
+	if x != nil {
+		return x.DynamicBarriers
+	}
+	return nil
+}
+
 // NodeDef 图节点定义。
 type NodeDef struct {
 	state             protoimpl.MessageState `protogen:"open.v1"`
@@ -624,7 +770,7 @@ type NodeDef struct {
 
 func (x *NodeDef) Reset() {
 	*x = NodeDef{}
-	mi := &file_graph_proto_msgTypes[6]
+	mi := &file_graph_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -636,7 +782,7 @@ func (x *NodeDef) String() string {
 func (*NodeDef) ProtoMessage() {}
 
 func (x *NodeDef) ProtoReflect() protoreflect.Message {
-	mi := &file_graph_proto_msgTypes[6]
+	mi := &file_graph_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -649,7 +795,7 @@ func (x *NodeDef) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use NodeDef.ProtoReflect.Descriptor instead.
 func (*NodeDef) Descriptor() ([]byte, []int) {
-	return file_graph_proto_rawDescGZIP(), []int{6}
+	return file_graph_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *NodeDef) GetNodeId() string {
@@ -720,7 +866,7 @@ type GraphSpec struct {
 
 func (x *GraphSpec) Reset() {
 	*x = GraphSpec{}
-	mi := &file_graph_proto_msgTypes[7]
+	mi := &file_graph_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -732,7 +878,7 @@ func (x *GraphSpec) String() string {
 func (*GraphSpec) ProtoMessage() {}
 
 func (x *GraphSpec) ProtoReflect() protoreflect.Message {
-	mi := &file_graph_proto_msgTypes[7]
+	mi := &file_graph_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -745,7 +891,7 @@ func (x *GraphSpec) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GraphSpec.ProtoReflect.Descriptor instead.
 func (*GraphSpec) Descriptor() ([]byte, []int) {
-	return file_graph_proto_rawDescGZIP(), []int{7}
+	return file_graph_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *GraphSpec) GetVersion() *GraphVersion {
@@ -778,30 +924,42 @@ const file_graph_proto_rawDesc = "" +
 	"\n" +
 	"field_path\x18\x01 \x01(\tR\tfieldPath\x12!\n" +
 	"\x02op\x18\x02 \x01(\x0e2\x11.dag.v1.CompareOpR\x02op\x12\x14\n" +
-	"\x05value\x18\x03 \x01(\tR\x05value\"p\n" +
+	"\x05value\x18\x03 \x01(\tR\x05value\"w\n" +
+	"\x0fSignalPredicate\x12\x1f\n" +
+	"\vsignal_name\x18\x01 \x01(\tR\n" +
+	"signalName\x12C\n" +
+	"\x11payload_predicate\x18\x02 \x01(\v2\x16.dag.v1.FieldPredicateR\x10payloadPredicate\"\xb6\x01\n" +
 	"\tCondition\x12\x18\n" +
 	"\x06always\x18\x01 \x01(\bH\x00R\x06always\x12A\n" +
-	"\x0ffield_predicate\x18\x02 \x01(\v2\x16.dag.v1.FieldPredicateH\x00R\x0efieldPredicateB\x06\n" +
+	"\x0ffield_predicate\x18\x02 \x01(\v2\x16.dag.v1.FieldPredicateH\x00R\x0efieldPredicate\x12D\n" +
+	"\x10signal_predicate\x18\x03 \x01(\v2\x17.dag.v1.SignalPredicateH\x00R\x0fsignalPredicateB\x06\n" +
 	"\x04kind\"\x7f\n" +
 	"\n" +
 	"Transition\x12$\n" +
 	"\x0etarget_node_id\x18\x01 \x01(\tR\ftargetNodeId\x12/\n" +
 	"\tcondition\x18\x02 \x01(\v2\x11.dag.v1.ConditionR\tcondition\x12\x1a\n" +
-	"\bpriority\x18\x03 \x01(\x05R\bpriority\"\xd0\x01\n" +
+	"\bpriority\x18\x03 \x01(\x05R\bpriority\"\xa0\x02\n" +
 	"\x0eWaitNodeConfig\x12\x1f\n" +
 	"\vsignal_name\x18\x01 \x01(\tR\n" +
 	"signalName\x12)\n" +
 	"\x10accepted_signals\x18\x02 \x03(\tR\x0facceptedSignals\x128\n" +
 	"\x18default_deadline_seconds\x18\x03 \x01(\x03R\x16defaultDeadlineSeconds\x128\n" +
-	"\x19on_timeout_target_node_id\x18\x04 \x01(\tR\x15onTimeoutTargetNodeId\"j\n" +
+	"\x19on_timeout_target_node_id\x18\x04 \x01(\tR\x15onTimeoutTargetNodeId\x125\n" +
+	"\x14merge_signal_payload\x18\x05 \x01(\bH\x00R\x12mergeSignalPayload\x88\x01\x01B\x17\n" +
+	"\x15_merge_signal_payload\"j\n" +
 	"\vJoinBarrier\x12(\n" +
 	"\x0fchild_entity_id\x18\x01 \x01(\tH\x00R\rchildEntityId\x12'\n" +
 	"\x0ecorrelation_id\x18\x02 \x01(\tH\x00R\rcorrelationIdB\b\n" +
-	"\x06target\"\xa7\x01\n" +
+	"\x06target\"\x96\x01\n" +
+	"\x12DynamicJoinBarrier\x12-\n" +
+	"\x12correlation_prefix\x18\x01 \x01(\tR\x11correlationPrefix\x12%\n" +
+	"\x0eexpected_count\x18\x02 \x01(\x05R\rexpectedCount\x12*\n" +
+	"\x06policy\x18\x03 \x01(\x0e2\x12.dag.v1.JoinPolicyR\x06policy\"\xee\x01\n" +
 	"\bJoinSpec\x12/\n" +
 	"\bbarriers\x18\x01 \x03(\v2\x13.dag.v1.JoinBarrierR\bbarriers\x12*\n" +
 	"\x06policy\x18\x02 \x01(\x0e2\x12.dag.v1.JoinPolicyR\x06policy\x12>\n" +
-	"\x1cfail_parent_on_child_failure\x18\x03 \x01(\bR\x18failParentOnChildFailure\"\xf3\x02\n" +
+	"\x1cfail_parent_on_child_failure\x18\x03 \x01(\bR\x18failParentOnChildFailure\x12E\n" +
+	"\x10dynamic_barriers\x18\x04 \x03(\v2\x1a.dag.v1.DynamicJoinBarrierR\x0fdynamicBarriers\"\xf3\x02\n" +
 	"\aNodeDef\x12\x17\n" +
 	"\anode_id\x18\x01 \x01(\tR\x06nodeId\x12$\n" +
 	"\x04kind\x18\x02 \x01(\x0e2\x10.dag.v1.NodeKindR\x04kind\x12\x17\n" +
@@ -853,42 +1011,48 @@ func file_graph_proto_rawDescGZIP() []byte {
 }
 
 var file_graph_proto_enumTypes = make([]protoimpl.EnumInfo, 3)
-var file_graph_proto_msgTypes = make([]protoimpl.MessageInfo, 9)
+var file_graph_proto_msgTypes = make([]protoimpl.MessageInfo, 11)
 var file_graph_proto_goTypes = []any{
-	(NodeKind)(0),          // 0: dag.v1.NodeKind
-	(CompareOp)(0),         // 1: dag.v1.CompareOp
-	(JoinPolicy)(0),        // 2: dag.v1.JoinPolicy
-	(*FieldPredicate)(nil), // 3: dag.v1.FieldPredicate
-	(*Condition)(nil),      // 4: dag.v1.Condition
-	(*Transition)(nil),     // 5: dag.v1.Transition
-	(*WaitNodeConfig)(nil), // 6: dag.v1.WaitNodeConfig
-	(*JoinBarrier)(nil),    // 7: dag.v1.JoinBarrier
-	(*JoinSpec)(nil),       // 8: dag.v1.JoinSpec
-	(*NodeDef)(nil),        // 9: dag.v1.NodeDef
-	(*GraphSpec)(nil),      // 10: dag.v1.GraphSpec
-	nil,                    // 11: dag.v1.GraphSpec.NodesEntry
-	(TerminalOutcome)(0),   // 12: dag.v1.TerminalOutcome
-	(*GraphVersion)(nil),   // 13: dag.v1.GraphVersion
+	(NodeKind)(0),              // 0: dag.v1.NodeKind
+	(CompareOp)(0),             // 1: dag.v1.CompareOp
+	(JoinPolicy)(0),            // 2: dag.v1.JoinPolicy
+	(*FieldPredicate)(nil),     // 3: dag.v1.FieldPredicate
+	(*SignalPredicate)(nil),    // 4: dag.v1.SignalPredicate
+	(*Condition)(nil),          // 5: dag.v1.Condition
+	(*Transition)(nil),         // 6: dag.v1.Transition
+	(*WaitNodeConfig)(nil),     // 7: dag.v1.WaitNodeConfig
+	(*JoinBarrier)(nil),        // 8: dag.v1.JoinBarrier
+	(*DynamicJoinBarrier)(nil), // 9: dag.v1.DynamicJoinBarrier
+	(*JoinSpec)(nil),           // 10: dag.v1.JoinSpec
+	(*NodeDef)(nil),            // 11: dag.v1.NodeDef
+	(*GraphSpec)(nil),          // 12: dag.v1.GraphSpec
+	nil,                        // 13: dag.v1.GraphSpec.NodesEntry
+	(TerminalOutcome)(0),       // 14: dag.v1.TerminalOutcome
+	(*GraphVersion)(nil),       // 15: dag.v1.GraphVersion
 }
 var file_graph_proto_depIdxs = []int32{
 	1,  // 0: dag.v1.FieldPredicate.op:type_name -> dag.v1.CompareOp
-	3,  // 1: dag.v1.Condition.field_predicate:type_name -> dag.v1.FieldPredicate
-	4,  // 2: dag.v1.Transition.condition:type_name -> dag.v1.Condition
-	7,  // 3: dag.v1.JoinSpec.barriers:type_name -> dag.v1.JoinBarrier
-	2,  // 4: dag.v1.JoinSpec.policy:type_name -> dag.v1.JoinPolicy
-	0,  // 5: dag.v1.NodeDef.kind:type_name -> dag.v1.NodeKind
-	5,  // 6: dag.v1.NodeDef.transitions:type_name -> dag.v1.Transition
-	12, // 7: dag.v1.NodeDef.terminal_outcome:type_name -> dag.v1.TerminalOutcome
-	6,  // 8: dag.v1.NodeDef.wait_config:type_name -> dag.v1.WaitNodeConfig
-	8,  // 9: dag.v1.NodeDef.join_spec:type_name -> dag.v1.JoinSpec
-	13, // 10: dag.v1.GraphSpec.version:type_name -> dag.v1.GraphVersion
-	11, // 11: dag.v1.GraphSpec.nodes:type_name -> dag.v1.GraphSpec.NodesEntry
-	9,  // 12: dag.v1.GraphSpec.NodesEntry.value:type_name -> dag.v1.NodeDef
-	13, // [13:13] is the sub-list for method output_type
-	13, // [13:13] is the sub-list for method input_type
-	13, // [13:13] is the sub-list for extension type_name
-	13, // [13:13] is the sub-list for extension extendee
-	0,  // [0:13] is the sub-list for field type_name
+	3,  // 1: dag.v1.SignalPredicate.payload_predicate:type_name -> dag.v1.FieldPredicate
+	3,  // 2: dag.v1.Condition.field_predicate:type_name -> dag.v1.FieldPredicate
+	4,  // 3: dag.v1.Condition.signal_predicate:type_name -> dag.v1.SignalPredicate
+	5,  // 4: dag.v1.Transition.condition:type_name -> dag.v1.Condition
+	2,  // 5: dag.v1.DynamicJoinBarrier.policy:type_name -> dag.v1.JoinPolicy
+	8,  // 6: dag.v1.JoinSpec.barriers:type_name -> dag.v1.JoinBarrier
+	2,  // 7: dag.v1.JoinSpec.policy:type_name -> dag.v1.JoinPolicy
+	9,  // 8: dag.v1.JoinSpec.dynamic_barriers:type_name -> dag.v1.DynamicJoinBarrier
+	0,  // 9: dag.v1.NodeDef.kind:type_name -> dag.v1.NodeKind
+	6,  // 10: dag.v1.NodeDef.transitions:type_name -> dag.v1.Transition
+	14, // 11: dag.v1.NodeDef.terminal_outcome:type_name -> dag.v1.TerminalOutcome
+	7,  // 12: dag.v1.NodeDef.wait_config:type_name -> dag.v1.WaitNodeConfig
+	10, // 13: dag.v1.NodeDef.join_spec:type_name -> dag.v1.JoinSpec
+	15, // 14: dag.v1.GraphSpec.version:type_name -> dag.v1.GraphVersion
+	13, // 15: dag.v1.GraphSpec.nodes:type_name -> dag.v1.GraphSpec.NodesEntry
+	11, // 16: dag.v1.GraphSpec.NodesEntry.value:type_name -> dag.v1.NodeDef
+	17, // [17:17] is the sub-list for method output_type
+	17, // [17:17] is the sub-list for method input_type
+	17, // [17:17] is the sub-list for extension type_name
+	17, // [17:17] is the sub-list for extension extendee
+	0,  // [0:17] is the sub-list for field type_name
 }
 
 func init() { file_graph_proto_init() }
@@ -897,11 +1061,13 @@ func file_graph_proto_init() {
 		return
 	}
 	file_common_proto_init()
-	file_graph_proto_msgTypes[1].OneofWrappers = []any{
+	file_graph_proto_msgTypes[2].OneofWrappers = []any{
 		(*Condition_Always)(nil),
 		(*Condition_FieldPredicate)(nil),
+		(*Condition_SignalPredicate)(nil),
 	}
-	file_graph_proto_msgTypes[4].OneofWrappers = []any{
+	file_graph_proto_msgTypes[4].OneofWrappers = []any{}
+	file_graph_proto_msgTypes[5].OneofWrappers = []any{
 		(*JoinBarrier_ChildEntityId)(nil),
 		(*JoinBarrier_CorrelationId)(nil),
 	}
@@ -911,7 +1077,7 @@ func file_graph_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_graph_proto_rawDesc), len(file_graph_proto_rawDesc)),
 			NumEnums:      3,
-			NumMessages:   9,
+			NumMessages:   11,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

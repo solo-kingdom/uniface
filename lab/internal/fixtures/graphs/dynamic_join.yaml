@@ -1,0 +1,20 @@
+graph_id: dynamic-join
+version: v1
+entity_type: lab.Generic
+schema_version: v1
+entry: spawn
+nodes:
+  spawn:
+    kind: compute
+    unit: lab.echo
+    transitions:
+      - target: join
+  join:
+    kind: join
+    dynamic_prefix: pay-
+    join_policy: all_success
+    transitions:
+      - target: success
+  success:
+    kind: terminal
+    outcome: success

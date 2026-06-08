@@ -1,0 +1,17 @@
+graph_id: approval-branch
+version: v1
+entity_type: lab.Generic
+schema_version: v1
+entry: wait
+nodes:
+  wait:
+    kind: wait
+    signal: approval
+    transitions:
+      - target: success
+  success:
+    kind: terminal
+    outcome: success
+  failure:
+    kind: terminal
+    outcome: failure

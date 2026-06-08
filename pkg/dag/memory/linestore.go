@@ -2,6 +2,7 @@ package memory
 
 import (
 	"context"
+	"strings"
 	"sync"
 	"time"
 
@@ -152,6 +153,11 @@ func (s *LineStore) CommitHop(ctx context.Context, commit *dagv1.HopCommit) erro
 		inst.Status = commit.NextStatus
 		inst.CurrentNodeId = commit.NextNodeId
 		rec.waiting = nil
+		if commit.OutputSnapshot != nil {
+			inst.Sequence++
+			rec.snapshot = entity.CloneSnapshot(commit.OutputSnapshot)
+			rec.snapshot.Sequence = inst.Sequence
+		}
 	case dagv1.JournalKind_JOURNAL_KIND_JOIN_COMMITTED:
 		inst.Sequence++
 		inst.Status = commit.NextStatus
@@ -189,9 +195,11 @@ func (s *LineStore) CommitHop(ctx context.Context, commit *dagv1.HopCommit) erro
 		CommittedAt:     timestamppb.Now(),
 		SignalName:      commit.SignalName,
 		DeliveryId:      commit.DeliveryId,
+		FailureReason:   commit.FailureReason,
 	}
 	if len(commit.Spawned) > 0 {
 		entry.SpawnedRef = commit.Spawned[0]
+		entry.SpawnedRefs = append([]*dagv1.EntityRef(nil), commit.Spawned...)
 	}
 	rec.journal = append(rec.journal, entry)
 	if exec, ok := s.executions[commit.IdempotencyKey]; ok {
@@ -300,6 +308,51 @@ func (s *LineStore) FindChildByCorrelation(parent *dagv1.EntityRef, correlationI
 		}
 	}
 	return nil, dag.ErrInstanceNotFound
+}
+
+// ListChildrenByCorrelationPrefix 列出 parent 下 correlation_id 前缀匹配的子实例。
+func (s *LineStore) ListChildrenByCorrelationPrefix(parent *dagv1.EntityRef, prefix string) ([]*dagv1.EntityInstance, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	var out []*dagv1.EntityInstance
+	for _, rec := range s.instances {
+		if rec.instance.Parent == nil || parent == nil {
+			continue
+		}
+		if rec.instance.Parent.EntityId != parent.EntityId {
+			continue
+		}
+		if prefix != "" && !strings.HasPrefix(rec.instance.CorrelationId, prefix) {
+			continue
+		}
+		out = append(out, cloneInstance(rec.instance))
+	}
+	return out, nil
+}
+
+// ListSpawnedFromJournal 返回最近一次 SPAWNED journal 中的子实例 ref。
+func (s *LineStore) ListSpawnedFromJournal(ctx context.Context, ref *dagv1.EntityRef) ([]*dagv1.EntityRef, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	rec, err := s.getRecord(ref)
+	if err != nil {
+		return nil, err
+	}
+	for i := len(rec.journal) - 1; i >= 0; i-- {
+		entry := rec.journal[i]
+		if entry.Kind != dagv1.JournalKind_JOURNAL_KIND_SPAWNED {
+			continue
+		}
+		if len(entry.SpawnedRefs) > 0 {
+			out := make([]*dagv1.EntityRef, len(entry.SpawnedRefs))
+			copy(out, entry.SpawnedRefs)
+			return out, nil
+		}
+		if entry.SpawnedRef != nil {
+			return []*dagv1.EntityRef{entry.SpawnedRef}, nil
+		}
+	}
+	return nil, nil
 }
 
 func (s *LineStore) PopSagaFrame(ref *dagv1.EntityRef) (*dagv1.CompensationFrame, error) {

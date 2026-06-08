@@ -9,6 +9,11 @@ import (
 	"github.com/solo-kingdom/uniface/pkg/dag"
 )
 
+// SignalContext 信号路由上下文。
+type SignalContext struct {
+	SignalName string
+}
+
 // ValidateGraphSpec 静态校验图规格。
 func ValidateGraphSpec(spec *dagv1.GraphSpec) error {
 	if spec == nil || spec.EntryNodeId == "" || len(spec.Nodes) == 0 {
@@ -33,6 +38,14 @@ func ValidateGraphSpec(spec *dagv1.GraphSpec) error {
 			}
 		}
 		switch node.Kind {
+		case dagv1.NodeKind_NODE_KIND_COMPUTE:
+			if node.UnitId == "" {
+				return fmt.Errorf("%w: compute node %q missing unit_id", dag.ErrInvalidGraph, id)
+			}
+		case dagv1.NodeKind_NODE_KIND_WAIT:
+			if !waitConfigValid(node.WaitConfig) {
+				return fmt.Errorf("%w: wait node %q missing signal config", dag.ErrInvalidGraph, id)
+			}
 		case dagv1.NodeKind_NODE_KIND_TERMINAL:
 			if len(node.Transitions) > 0 {
 				return fmt.Errorf("%w: terminal node %q has transitions", dag.ErrInvalidGraph, id)
@@ -41,15 +54,91 @@ func ValidateGraphSpec(spec *dagv1.GraphSpec) error {
 				return fmt.Errorf("%w: terminal node %q missing outcome", dag.ErrInvalidGraph, id)
 			}
 		case dagv1.NodeKind_NODE_KIND_JOIN:
-			if node.JoinSpec == nil || len(node.JoinSpec.Barriers) == 0 {
+			if node.JoinSpec == nil || (len(node.JoinSpec.Barriers) == 0 && len(node.JoinSpec.DynamicBarriers) == 0) {
 				return fmt.Errorf("%w: join node %q missing barriers", dag.ErrInvalidGraph, id)
 			}
 		}
+		if requiresFallbackEdge(node) && !hasAlwaysTransition(node) {
+			return fmt.Errorf("%w: node %q missing always fallback transition", dag.ErrInvalidGraph, id)
+		}
+	}
+	if hasCycle(spec) {
+		return fmt.Errorf("%w: cycle detected", dag.ErrInvalidGraph)
 	}
 	if !reachableTerminal(spec, spec.EntryNodeId, map[string]bool{}) {
 		return fmt.Errorf("%w: no path to terminal from entry", dag.ErrInvalidGraph)
 	}
 	return nil
+}
+
+func waitConfigValid(cfg *dagv1.WaitNodeConfig) bool {
+	if cfg == nil {
+		return false
+	}
+	if cfg.SignalName != "" {
+		return true
+	}
+	return len(cfg.AcceptedSignals) > 0
+}
+
+func requiresFallbackEdge(node *dagv1.NodeDef) bool {
+	if node == nil {
+		return false
+	}
+	switch node.Kind {
+	case dagv1.NodeKind_NODE_KIND_TERMINAL, dagv1.NodeKind_NODE_KIND_WAIT, dagv1.NodeKind_NODE_KIND_JOIN:
+		return false
+	}
+	for _, tr := range node.Transitions {
+		if tr.Condition == nil {
+			continue
+		}
+		switch tr.Condition.Kind.(type) {
+		case *dagv1.Condition_FieldPredicate, *dagv1.Condition_SignalPredicate:
+			return true
+		}
+	}
+	return false
+}
+
+func hasAlwaysTransition(node *dagv1.NodeDef) bool {
+	for _, tr := range node.Transitions {
+		if tr.Condition == nil {
+			continue
+		}
+		if always, ok := tr.Condition.Kind.(*dagv1.Condition_Always); ok && always.Always {
+			return true
+		}
+	}
+	return false
+}
+
+func hasCycle(spec *dagv1.GraphSpec) bool {
+	state := make(map[string]int, len(spec.Nodes))
+	var dfs func(string) bool
+	dfs = func(id string) bool {
+		switch state[id] {
+		case 1:
+			return true
+		case 2:
+			return false
+		}
+		state[id] = 1
+		node := spec.Nodes[id]
+		for _, tr := range node.Transitions {
+			if dfs(tr.TargetNodeId) {
+				return true
+			}
+		}
+		state[id] = 2
+		return false
+	}
+	for id := range spec.Nodes {
+		if state[id] == 0 && dfs(id) {
+			return true
+		}
+	}
+	return false
 }
 
 func reachableTerminal(spec *dagv1.GraphSpec, nodeID string, visiting map[string]bool) bool {
@@ -110,11 +199,11 @@ func (r *Resolver) Resolve(ctx context.Context, graph *dagv1.GraphSpec, nodeID s
 	case dagv1.NodeKind_NODE_KIND_WAIT, dagv1.NodeKind_NODE_KIND_JOIN:
 		return nodeID, nil
 	}
-	return ResolveTransitions(node, snapshot)
+	return ResolveTransitions(node, snapshot, nil)
 }
 
 // ResolveTransitions 按 priority 评估节点出边。
-func ResolveTransitions(node *dagv1.NodeDef, snapshot *dagv1.EntitySnapshot) (string, error) {
+func ResolveTransitions(node *dagv1.NodeDef, snapshot *dagv1.EntitySnapshot, sigCtx *SignalContext) (string, error) {
 	if node == nil {
 		return "", dag.ErrInvalidGraph
 	}
@@ -126,7 +215,7 @@ func ResolveTransitions(node *dagv1.NodeDef, snapshot *dagv1.EntitySnapshot) (st
 		if tr.Condition == nil {
 			continue
 		}
-		match, err := evalCondition(tr.Condition, snapshot)
+		match, err := evalCondition(tr.Condition, snapshot, sigCtx)
 		if err != nil {
 			return "", err
 		}
@@ -137,7 +226,7 @@ func ResolveTransitions(node *dagv1.NodeDef, snapshot *dagv1.EntitySnapshot) (st
 	return "", dag.ErrNoTransition
 }
 
-func evalCondition(cond *dagv1.Condition, snapshot *dagv1.EntitySnapshot) (bool, error) {
+func evalCondition(cond *dagv1.Condition, snapshot *dagv1.EntitySnapshot, sigCtx *SignalContext) (bool, error) {
 	if cond == nil {
 		return false, nil
 	}
@@ -146,6 +235,8 @@ func evalCondition(cond *dagv1.Condition, snapshot *dagv1.EntitySnapshot) (bool,
 		return k.Always, nil
 	case *dagv1.Condition_FieldPredicate:
 		return EvalFieldPredicate(k.FieldPredicate, snapshot)
+	case *dagv1.Condition_SignalPredicate:
+		return EvalSignalPredicate(k.SignalPredicate, snapshot, sigCtx)
 	default:
 		return false, nil
 	}

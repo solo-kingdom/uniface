@@ -74,6 +74,8 @@ message LineJournalEntry {
   string delivery_id = 10;
   EntityRef spawned_ref = 11;
   CompensationFrame compensation_frame = 12;
+  repeated EntityRef spawned_refs = 13;
+  string failure_reason = 14;
 }
 
 // HopCommit hop 提交载荷。
@@ -90,4 +92,5 @@ message HopCommit {
   JournalKind journal_kind = 10;
   string signal_name = 11;
   string delivery_id = 12;
+  string failure_reason = 13;
 }

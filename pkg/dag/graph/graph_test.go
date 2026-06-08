@@ -94,3 +94,114 @@ func mustAny(msg *testpb.Order) *anypb.Any {
 	}
 	return a
 }
+
+func TestSignalPredicateRouting(t *testing.T) {
+	typeKey := &dagv1.EntityTypeKey{EntityType: "order.Order", PayloadSchemaVersion: "v1"}
+	order := &testpb.Order{Approved: true}
+	snap := entity.NewSnapshot(&dagv1.EntityRef{EntityId: "o-1"}, typeKey, 1, mustAny(order))
+	approvedPred := &dagv1.SignalPredicate{
+		SignalName: "approval",
+		PayloadPredicate: &dagv1.FieldPredicate{
+			FieldPath: "Approved", Op: dagv1.CompareOp_COMPARE_OP_EQ, Value: "true",
+		},
+	}
+	rejectedPred := &dagv1.SignalPredicate{
+		SignalName: "approval",
+		PayloadPredicate: &dagv1.FieldPredicate{
+			FieldPath: "Approved", Op: dagv1.CompareOp_COMPARE_OP_EQ, Value: "false",
+		},
+	}
+	always := &dagv1.Condition{Kind: &dagv1.Condition_Always{Always: true}}
+	spec := &dagv1.GraphSpec{
+		EntryNodeId: "wait",
+		Nodes: map[string]*dagv1.NodeDef{
+			"wait": {
+				NodeId: "wait", Kind: dagv1.NodeKind_NODE_KIND_WAIT,
+				WaitConfig: &dagv1.WaitNodeConfig{SignalName: "approval"},
+				Transitions: []*dagv1.Transition{
+					{TargetNodeId: "success", Condition: &dagv1.Condition{Kind: &dagv1.Condition_SignalPredicate{SignalPredicate: approvedPred}}, Priority: 10},
+					{TargetNodeId: "reject", Condition: &dagv1.Condition{Kind: &dagv1.Condition_SignalPredicate{SignalPredicate: rejectedPred}}, Priority: 5},
+					{TargetNodeId: "fallback", Condition: always, Priority: 0},
+				},
+			},
+		},
+	}
+	sigCtx := &SignalContext{SignalName: "approval"}
+	next, err := ResolveTransitions(spec.Nodes["wait"], snap, sigCtx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if next != "success" {
+		t.Fatalf("expected success, got %q", next)
+	}
+	sigCtx.SignalName = "rejection"
+	next, err = ResolveTransitions(spec.Nodes["wait"], snap, sigCtx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if next != "fallback" {
+		t.Fatalf("expected fallback for mismatched signal, got %q", next)
+	}
+}
+
+func TestValidateGraphSpecComputeMissingUnitID(t *testing.T) {
+	always := &dagv1.Condition{Kind: &dagv1.Condition_Always{Always: true}}
+	spec := &dagv1.GraphSpec{
+		EntryNodeId: "start",
+		Nodes: map[string]*dagv1.NodeDef{
+			"start": {
+				NodeId: "start", Kind: dagv1.NodeKind_NODE_KIND_COMPUTE,
+				Transitions: []*dagv1.Transition{{TargetNodeId: "end", Condition: always}},
+			},
+			"end": {
+				NodeId: "end", Kind: dagv1.NodeKind_NODE_KIND_TERMINAL,
+				TerminalOutcome: dagv1.TerminalOutcome_TERMINAL_OUTCOME_SUCCESS,
+			},
+		},
+	}
+	if err := ValidateGraphSpec(spec); err == nil {
+		t.Fatal("expected error for missing unit_id")
+	}
+}
+
+func TestValidateGraphSpecMissingFallback(t *testing.T) {
+	pred := &dagv1.FieldPredicate{FieldPath: "Amount", Op: dagv1.CompareOp_COMPARE_OP_GT, Value: "100"}
+	spec := &dagv1.GraphSpec{
+		EntryNodeId: "route",
+		Nodes: map[string]*dagv1.NodeDef{
+			"route": {
+				NodeId: "route", Kind: dagv1.NodeKind_NODE_KIND_COMPUTE, UnitId: "u",
+				Transitions: []*dagv1.Transition{
+					{TargetNodeId: "high", Condition: &dagv1.Condition{Kind: &dagv1.Condition_FieldPredicate{FieldPredicate: pred}}},
+				},
+			},
+			"high": {
+				NodeId: "high", Kind: dagv1.NodeKind_NODE_KIND_TERMINAL,
+				TerminalOutcome: dagv1.TerminalOutcome_TERMINAL_OUTCOME_SUCCESS,
+			},
+		},
+	}
+	if err := ValidateGraphSpec(spec); err == nil {
+		t.Fatal("expected error for missing fallback transition")
+	}
+}
+
+func TestValidateGraphSpecCycle(t *testing.T) {
+	always := &dagv1.Condition{Kind: &dagv1.Condition_Always{Always: true}}
+	spec := &dagv1.GraphSpec{
+		EntryNodeId: "a",
+		Nodes: map[string]*dagv1.NodeDef{
+			"a": {
+				NodeId: "a", Kind: dagv1.NodeKind_NODE_KIND_COMPUTE, UnitId: "u",
+				Transitions: []*dagv1.Transition{{TargetNodeId: "b", Condition: always}},
+			},
+			"b": {
+				NodeId: "b", Kind: dagv1.NodeKind_NODE_KIND_COMPUTE, UnitId: "u",
+				Transitions: []*dagv1.Transition{{TargetNodeId: "a", Condition: always}},
+			},
+		},
+	}
+	if err := ValidateGraphSpec(spec); err == nil {
+		t.Fatal("expected cycle detection error")
+	}
+}

@@ -40,11 +40,18 @@ message FieldPredicate {
   string value = 3;
 }
 
+// SignalPredicate 基于信号名与 payload 的条件。
+message SignalPredicate {
+  string signal_name = 1;
+  FieldPredicate payload_predicate = 2;
+}
+
 // Condition 路由条件。
 message Condition {
   oneof kind {
     bool always = 1;
     FieldPredicate field_predicate = 2;
+    SignalPredicate signal_predicate = 3;
   }
 }
 
@@ -61,6 +68,7 @@ message WaitNodeConfig {
   repeated string accepted_signals = 2;
   int64 default_deadline_seconds = 3;
   string on_timeout_target_node_id = 4;
+  optional bool merge_signal_payload = 5;
 }
 
 // JoinBarrier Join 屏障。
@@ -71,11 +79,19 @@ message JoinBarrier {
   }
 }
 
+// DynamicJoinBarrier 动态 Join 屏障（correlation 前缀匹配）。
+message DynamicJoinBarrier {
+  string correlation_prefix = 1;
+  int32 expected_count = 2;
+  JoinPolicy policy = 3;
+}
+
 // JoinSpec JOIN 节点配置。
 message JoinSpec {
   repeated JoinBarrier barriers = 1;
   JoinPolicy policy = 2;
   bool fail_parent_on_child_failure = 3;
+  repeated DynamicJoinBarrier dynamic_barriers = 4;
 }
 
 // NodeDef 图节点定义。

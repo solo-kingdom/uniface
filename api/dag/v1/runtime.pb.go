@@ -416,6 +416,8 @@ type LineJournalEntry struct {
 	DeliveryId        string                 `protobuf:"bytes,10,opt,name=delivery_id,json=deliveryId,proto3" json:"delivery_id,omitempty"`
 	SpawnedRef        *EntityRef             `protobuf:"bytes,11,opt,name=spawned_ref,json=spawnedRef,proto3" json:"spawned_ref,omitempty"`
 	CompensationFrame *CompensationFrame     `protobuf:"bytes,12,opt,name=compensation_frame,json=compensationFrame,proto3" json:"compensation_frame,omitempty"`
+	SpawnedRefs       []*EntityRef           `protobuf:"bytes,13,rep,name=spawned_refs,json=spawnedRefs,proto3" json:"spawned_refs,omitempty"`
+	FailureReason     string                 `protobuf:"bytes,14,opt,name=failure_reason,json=failureReason,proto3" json:"failure_reason,omitempty"`
 	unknownFields     protoimpl.UnknownFields
 	sizeCache         protoimpl.SizeCache
 }
@@ -534,6 +536,20 @@ func (x *LineJournalEntry) GetCompensationFrame() *CompensationFrame {
 	return nil
 }
 
+func (x *LineJournalEntry) GetSpawnedRefs() []*EntityRef {
+	if x != nil {
+		return x.SpawnedRefs
+	}
+	return nil
+}
+
+func (x *LineJournalEntry) GetFailureReason() string {
+	if x != nil {
+		return x.FailureReason
+	}
+	return ""
+}
+
 // HopCommit hop 提交载荷。
 type HopCommit struct {
 	state          protoimpl.MessageState `protogen:"open.v1"`
@@ -549,6 +565,7 @@ type HopCommit struct {
 	JournalKind    JournalKind            `protobuf:"varint,10,opt,name=journal_kind,json=journalKind,proto3,enum=dag.v1.JournalKind" json:"journal_kind,omitempty"`
 	SignalName     string                 `protobuf:"bytes,11,opt,name=signal_name,json=signalName,proto3" json:"signal_name,omitempty"`
 	DeliveryId     string                 `protobuf:"bytes,12,opt,name=delivery_id,json=deliveryId,proto3" json:"delivery_id,omitempty"`
+	FailureReason  string                 `protobuf:"bytes,13,opt,name=failure_reason,json=failureReason,proto3" json:"failure_reason,omitempty"`
 	unknownFields  protoimpl.UnknownFields
 	sizeCache      protoimpl.SizeCache
 }
@@ -667,6 +684,13 @@ func (x *HopCommit) GetDeliveryId() string {
 	return ""
 }
 
+func (x *HopCommit) GetFailureReason() string {
+	if x != nil {
+		return x.FailureReason
+	}
+	return ""
+}
+
 var File_runtime_proto protoreflect.FileDescriptor
 
 const file_runtime_proto_rawDesc = "" +
@@ -697,7 +721,7 @@ const file_runtime_proto_rawDesc = "" +
 	"signalName\x12\x1f\n" +
 	"\vdelivery_id\x18\x03 \x01(\tR\n" +
 	"deliveryId\x12.\n" +
-	"\apayload\x18\x04 \x01(\v2\x14.google.protobuf.AnyR\apayload\"\xb8\x04\n" +
+	"\apayload\x18\x04 \x01(\v2\x14.google.protobuf.AnyR\apayload\"\x95\x05\n" +
 	"\x10LineJournalEntry\x12)\n" +
 	"\x10journal_sequence\x18\x01 \x01(\x03R\x0fjournalSequence\x12'\n" +
 	"\x04kind\x18\x02 \x01(\x0e2\x13.dag.v1.JournalKindR\x04kind\x12\x17\n" +
@@ -714,7 +738,9 @@ const file_runtime_proto_rawDesc = "" +
 	"deliveryId\x122\n" +
 	"\vspawned_ref\x18\v \x01(\v2\x11.dag.v1.EntityRefR\n" +
 	"spawnedRef\x12H\n" +
-	"\x12compensation_frame\x18\f \x01(\v2\x19.dag.v1.CompensationFrameR\x11compensationFrame\"\x8e\x04\n" +
+	"\x12compensation_frame\x18\f \x01(\v2\x19.dag.v1.CompensationFrameR\x11compensationFrame\x124\n" +
+	"\fspawned_refs\x18\r \x03(\v2\x11.dag.v1.EntityRefR\vspawnedRefs\x12%\n" +
+	"\x0efailure_reason\x18\x0e \x01(\tR\rfailureReason\"\xb5\x04\n" +
 	"\tHopCommit\x12#\n" +
 	"\x03ref\x18\x01 \x01(\v2\x11.dag.v1.EntityRefR\x03ref\x12\x17\n" +
 	"\anode_id\x18\x02 \x01(\tR\x06nodeId\x12%\n" +
@@ -733,7 +759,8 @@ const file_runtime_proto_rawDesc = "" +
 	"\vsignal_name\x18\v \x01(\tR\n" +
 	"signalName\x12\x1f\n" +
 	"\vdelivery_id\x18\f \x01(\tR\n" +
-	"deliveryId*\xac\x01\n" +
+	"deliveryId\x12%\n" +
+	"\x0efailure_reason\x18\r \x01(\tR\rfailureReason*\xac\x01\n" +
 	"\x0fExecutionStatus\x12 \n" +
 	"\x1cEXECUTION_STATUS_UNSPECIFIED\x10\x00\x12\x1c\n" +
 	"\x18EXECUTION_STATUS_PENDING\x10\x01\x12\x1c\n" +
@@ -797,17 +824,18 @@ var file_runtime_proto_depIdxs = []int32{
 	12, // 12: dag.v1.LineJournalEntry.committed_at:type_name -> google.protobuf.Timestamp
 	7,  // 13: dag.v1.LineJournalEntry.spawned_ref:type_name -> dag.v1.EntityRef
 	14, // 14: dag.v1.LineJournalEntry.compensation_frame:type_name -> dag.v1.CompensationFrame
-	7,  // 15: dag.v1.HopCommit.ref:type_name -> dag.v1.EntityRef
-	13, // 16: dag.v1.HopCommit.output_snapshot:type_name -> dag.v1.EntitySnapshot
-	15, // 17: dag.v1.HopCommit.next_status:type_name -> dag.v1.InstanceStatus
-	16, // 18: dag.v1.HopCommit.saga_delta:type_name -> dag.v1.SagaState
-	7,  // 19: dag.v1.HopCommit.spawned:type_name -> dag.v1.EntityRef
-	1,  // 20: dag.v1.HopCommit.journal_kind:type_name -> dag.v1.JournalKind
-	21, // [21:21] is the sub-list for method output_type
-	21, // [21:21] is the sub-list for method input_type
-	21, // [21:21] is the sub-list for extension type_name
-	21, // [21:21] is the sub-list for extension extendee
-	0,  // [0:21] is the sub-list for field type_name
+	7,  // 15: dag.v1.LineJournalEntry.spawned_refs:type_name -> dag.v1.EntityRef
+	7,  // 16: dag.v1.HopCommit.ref:type_name -> dag.v1.EntityRef
+	13, // 17: dag.v1.HopCommit.output_snapshot:type_name -> dag.v1.EntitySnapshot
+	15, // 18: dag.v1.HopCommit.next_status:type_name -> dag.v1.InstanceStatus
+	16, // 19: dag.v1.HopCommit.saga_delta:type_name -> dag.v1.SagaState
+	7,  // 20: dag.v1.HopCommit.spawned:type_name -> dag.v1.EntityRef
+	1,  // 21: dag.v1.HopCommit.journal_kind:type_name -> dag.v1.JournalKind
+	22, // [22:22] is the sub-list for method output_type
+	22, // [22:22] is the sub-list for method input_type
+	22, // [22:22] is the sub-list for extension type_name
+	22, // [22:22] is the sub-list for extension extendee
+	0,  // [0:22] is the sub-list for field type_name
 }
 
 func init() { file_runtime_proto_init() }

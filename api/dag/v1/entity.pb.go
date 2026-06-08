@@ -590,6 +590,59 @@ func (x *FailIntent) GetTriggerCompensation() bool {
 	return false
 }
 
+// SignalPayload 不同 type_url 信号 payload 的包装 message。
+type SignalPayload struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	SignalName    string                 `protobuf:"bytes,1,opt,name=signal_name,json=signalName,proto3" json:"signal_name,omitempty"`
+	Payload       *anypb.Any             `protobuf:"bytes,2,opt,name=payload,proto3" json:"payload,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SignalPayload) Reset() {
+	*x = SignalPayload{}
+	mi := &file_entity_proto_msgTypes[7]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SignalPayload) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SignalPayload) ProtoMessage() {}
+
+func (x *SignalPayload) ProtoReflect() protoreflect.Message {
+	mi := &file_entity_proto_msgTypes[7]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SignalPayload.ProtoReflect.Descriptor instead.
+func (*SignalPayload) Descriptor() ([]byte, []int) {
+	return file_entity_proto_rawDescGZIP(), []int{7}
+}
+
+func (x *SignalPayload) GetSignalName() string {
+	if x != nil {
+		return x.SignalName
+	}
+	return ""
+}
+
+func (x *SignalPayload) GetPayload() *anypb.Any {
+	if x != nil {
+		return x.Payload
+	}
+	return nil
+}
+
 var File_entity_proto protoreflect.FileDescriptor
 
 const file_entity_proto_rawDesc = "" +
@@ -640,7 +693,11 @@ const file_entity_proto_rawDesc = "" +
 	"\n" +
 	"FailIntent\x12\x16\n" +
 	"\x06reason\x18\x01 \x01(\tR\x06reason\x121\n" +
-	"\x14trigger_compensation\x18\x02 \x01(\bR\x13triggerCompensationB2Z0github.com/solo-kingdom/uniface/api/dag/v1;dagv1b\x06proto3"
+	"\x14trigger_compensation\x18\x02 \x01(\bR\x13triggerCompensation\"`\n" +
+	"\rSignalPayload\x12\x1f\n" +
+	"\vsignal_name\x18\x01 \x01(\tR\n" +
+	"signalName\x12.\n" +
+	"\apayload\x18\x02 \x01(\v2\x14.google.protobuf.AnyR\apayloadB2Z0github.com/solo-kingdom/uniface/api/dag/v1;dagv1b\x06proto3"
 
 var (
 	file_entity_proto_rawDescOnce sync.Once
@@ -654,7 +711,7 @@ func file_entity_proto_rawDescGZIP() []byte {
 	return file_entity_proto_rawDescData
 }
 
-var file_entity_proto_msgTypes = make([]protoimpl.MessageInfo, 7)
+var file_entity_proto_msgTypes = make([]protoimpl.MessageInfo, 8)
 var file_entity_proto_goTypes = []any{
 	(*EntitySnapshot)(nil),        // 0: dag.v1.EntitySnapshot
 	(*EntityInstance)(nil),        // 1: dag.v1.EntityInstance
@@ -663,43 +720,45 @@ var file_entity_proto_goTypes = []any{
 	(*EntityMutation)(nil),        // 4: dag.v1.EntityMutation
 	(*SpawnList)(nil),             // 5: dag.v1.SpawnList
 	(*FailIntent)(nil),            // 6: dag.v1.FailIntent
-	(*EntityRef)(nil),             // 7: dag.v1.EntityRef
-	(*EntityTypeKey)(nil),         // 8: dag.v1.EntityTypeKey
-	(*anypb.Any)(nil),             // 9: google.protobuf.Any
-	(InstanceStatus)(0),           // 10: dag.v1.InstanceStatus
-	(*GraphVersion)(nil),          // 11: dag.v1.GraphVersion
-	(GraphPinPolicy)(0),           // 12: dag.v1.GraphPinPolicy
-	(*timestamppb.Timestamp)(nil), // 13: google.protobuf.Timestamp
-	(TerminalOutcome)(0),          // 14: dag.v1.TerminalOutcome
+	(*SignalPayload)(nil),         // 7: dag.v1.SignalPayload
+	(*EntityRef)(nil),             // 8: dag.v1.EntityRef
+	(*EntityTypeKey)(nil),         // 9: dag.v1.EntityTypeKey
+	(*anypb.Any)(nil),             // 10: google.protobuf.Any
+	(InstanceStatus)(0),           // 11: dag.v1.InstanceStatus
+	(*GraphVersion)(nil),          // 12: dag.v1.GraphVersion
+	(GraphPinPolicy)(0),           // 13: dag.v1.GraphPinPolicy
+	(*timestamppb.Timestamp)(nil), // 14: google.protobuf.Timestamp
+	(TerminalOutcome)(0),          // 15: dag.v1.TerminalOutcome
 }
 var file_entity_proto_depIdxs = []int32{
-	7,  // 0: dag.v1.EntitySnapshot.ref:type_name -> dag.v1.EntityRef
-	8,  // 1: dag.v1.EntitySnapshot.type_key:type_name -> dag.v1.EntityTypeKey
-	9,  // 2: dag.v1.EntitySnapshot.payload:type_name -> google.protobuf.Any
-	7,  // 3: dag.v1.EntityInstance.ref:type_name -> dag.v1.EntityRef
-	8,  // 4: dag.v1.EntityInstance.type_key:type_name -> dag.v1.EntityTypeKey
-	10, // 5: dag.v1.EntityInstance.status:type_name -> dag.v1.InstanceStatus
-	11, // 6: dag.v1.EntityInstance.graph_version:type_name -> dag.v1.GraphVersion
-	12, // 7: dag.v1.EntityInstance.graph_pin_policy:type_name -> dag.v1.GraphPinPolicy
-	7,  // 8: dag.v1.EntityInstance.parent:type_name -> dag.v1.EntityRef
-	13, // 9: dag.v1.EntityInstance.created_at:type_name -> google.protobuf.Timestamp
-	13, // 10: dag.v1.EntityInstance.updated_at:type_name -> google.protobuf.Timestamp
-	13, // 11: dag.v1.WaitSignal.deadline:type_name -> google.protobuf.Timestamp
-	7,  // 12: dag.v1.SpawnSpec.ref:type_name -> dag.v1.EntityRef
-	8,  // 13: dag.v1.SpawnSpec.type_key:type_name -> dag.v1.EntityTypeKey
-	9,  // 14: dag.v1.SpawnSpec.initial_payload:type_name -> google.protobuf.Any
-	11, // 15: dag.v1.SpawnSpec.graph:type_name -> dag.v1.GraphVersion
+	8,  // 0: dag.v1.EntitySnapshot.ref:type_name -> dag.v1.EntityRef
+	9,  // 1: dag.v1.EntitySnapshot.type_key:type_name -> dag.v1.EntityTypeKey
+	10, // 2: dag.v1.EntitySnapshot.payload:type_name -> google.protobuf.Any
+	8,  // 3: dag.v1.EntityInstance.ref:type_name -> dag.v1.EntityRef
+	9,  // 4: dag.v1.EntityInstance.type_key:type_name -> dag.v1.EntityTypeKey
+	11, // 5: dag.v1.EntityInstance.status:type_name -> dag.v1.InstanceStatus
+	12, // 6: dag.v1.EntityInstance.graph_version:type_name -> dag.v1.GraphVersion
+	13, // 7: dag.v1.EntityInstance.graph_pin_policy:type_name -> dag.v1.GraphPinPolicy
+	8,  // 8: dag.v1.EntityInstance.parent:type_name -> dag.v1.EntityRef
+	14, // 9: dag.v1.EntityInstance.created_at:type_name -> google.protobuf.Timestamp
+	14, // 10: dag.v1.EntityInstance.updated_at:type_name -> google.protobuf.Timestamp
+	14, // 11: dag.v1.WaitSignal.deadline:type_name -> google.protobuf.Timestamp
+	8,  // 12: dag.v1.SpawnSpec.ref:type_name -> dag.v1.EntityRef
+	9,  // 13: dag.v1.SpawnSpec.type_key:type_name -> dag.v1.EntityTypeKey
+	10, // 14: dag.v1.SpawnSpec.initial_payload:type_name -> google.protobuf.Any
+	12, // 15: dag.v1.SpawnSpec.graph:type_name -> dag.v1.GraphVersion
 	0,  // 16: dag.v1.EntityMutation.update:type_name -> dag.v1.EntitySnapshot
 	5,  // 17: dag.v1.EntityMutation.spawn:type_name -> dag.v1.SpawnList
 	2,  // 18: dag.v1.EntityMutation.wait:type_name -> dag.v1.WaitSignal
-	14, // 19: dag.v1.EntityMutation.complete:type_name -> dag.v1.TerminalOutcome
+	15, // 19: dag.v1.EntityMutation.complete:type_name -> dag.v1.TerminalOutcome
 	6,  // 20: dag.v1.EntityMutation.fail:type_name -> dag.v1.FailIntent
 	3,  // 21: dag.v1.SpawnList.specs:type_name -> dag.v1.SpawnSpec
-	22, // [22:22] is the sub-list for method output_type
-	22, // [22:22] is the sub-list for method input_type
-	22, // [22:22] is the sub-list for extension type_name
-	22, // [22:22] is the sub-list for extension extendee
-	0,  // [0:22] is the sub-list for field type_name
+	10, // 22: dag.v1.SignalPayload.payload:type_name -> google.protobuf.Any
+	23, // [23:23] is the sub-list for method output_type
+	23, // [23:23] is the sub-list for method input_type
+	23, // [23:23] is the sub-list for extension type_name
+	23, // [23:23] is the sub-list for extension extendee
+	0,  // [0:23] is the sub-list for field type_name
 }
 
 func init() { file_entity_proto_init() }
@@ -721,7 +780,7 @@ func file_entity_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_entity_proto_rawDesc), len(file_entity_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   7,
+			NumMessages:   8,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

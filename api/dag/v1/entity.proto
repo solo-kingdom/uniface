@@ -67,3 +67,9 @@ message FailIntent {
   string reason = 1;
   bool trigger_compensation = 2;
 }
+
+// SignalPayload 不同 type_url 信号 payload 的包装 message。
+message SignalPayload {
+  string signal_name = 1;
+  google.protobuf.Any payload = 2;
+}

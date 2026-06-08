@@ -249,12 +249,14 @@ type graphYAML struct {
 }
 
 type graphNodeYAML struct {
-	Kind          string              `yaml:"kind"`
-	Unit          string              `yaml:"unit"`
-	Compensator   string              `yaml:"compensator"`
-	Signal        string              `yaml:"signal"`
-	Outcome       string              `yaml:"outcome"`
-	Transitions   []graphTransitionYAML `yaml:"transitions"`
+	Kind            string                `yaml:"kind"`
+	Unit            string                `yaml:"unit"`
+	Compensator     string                `yaml:"compensator"`
+	Signal          string                `yaml:"signal"`
+	Outcome         string                `yaml:"outcome"`
+	DynamicPrefix   string                `yaml:"dynamic_prefix"`
+	JoinPolicy      string                `yaml:"join_policy"`
+	Transitions     []graphTransitionYAML `yaml:"transitions"`
 }
 
 type graphTransitionYAML struct {
@@ -287,6 +289,19 @@ func parseGraphYAML(data []byte) (*dagv1.GraphSpec, error) {
 		case "wait":
 			node.Kind = dagv1.NodeKind_NODE_KIND_WAIT
 			node.WaitConfig = &dagv1.WaitNodeConfig{SignalName: n.Signal}
+		case "join":
+			node.Kind = dagv1.NodeKind_NODE_KIND_JOIN
+			policy := dagv1.JoinPolicy_JOIN_ALL_SUCCESS
+			if strings.EqualFold(n.JoinPolicy, "any_success") {
+				policy = dagv1.JoinPolicy_JOIN_ANY_SUCCESS
+			}
+			node.JoinSpec = &dagv1.JoinSpec{Policy: policy}
+			if n.DynamicPrefix != "" {
+				node.JoinSpec.DynamicBarriers = []*dagv1.DynamicJoinBarrier{{
+					CorrelationPrefix: n.DynamicPrefix,
+					Policy:            policy,
+				}}
+			}
 		case "terminal":
 			node.Kind = dagv1.NodeKind_NODE_KIND_TERMINAL
 			node.TerminalOutcome = parseOutcome(n.Outcome)

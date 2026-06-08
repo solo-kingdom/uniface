@@ -11,6 +11,20 @@ import (
 	"google.golang.org/protobuf/types/known/anypb"
 )
 
+// EvalSignalPredicate 对信号上下文与 snapshot 求值 SignalPredicate。
+func EvalSignalPredicate(pred *dagv1.SignalPredicate, snapshot *dagv1.EntitySnapshot, sigCtx *SignalContext) (bool, error) {
+	if pred == nil || sigCtx == nil {
+		return false, nil
+	}
+	if pred.SignalName != "" && pred.SignalName != sigCtx.SignalName {
+		return false, nil
+	}
+	if pred.PayloadPredicate == nil {
+		return true, nil
+	}
+	return EvalFieldPredicate(pred.PayloadPredicate, snapshot)
+}
+
 // EvalFieldPredicate 对 snapshot payload 求值 FieldPredicate。
 func EvalFieldPredicate(pred *dagv1.FieldPredicate, snapshot *dagv1.EntitySnapshot) (bool, error) {
 	if pred == nil || snapshot == nil || snapshot.Payload == nil {
