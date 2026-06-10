@@ -5,13 +5,30 @@ uniface 能力验证台——独立 lab 子模块，通过 CLI 与 Web Dashboard
 ## 快速开始
 
 ```bash
-# 从仓库根目录
+# 从仓库根目录 — 全量启动（与变更前行为一致）
 make lab-build
 make lab-up      # 启动 docker-compose + 六进程
 make lab-down    # 停止
 ```
 
 Dashboard: http://localhost:3000
+
+### 按域验证
+
+仅验证单一能力域时，无需启动全部中间件与进程：
+
+```bash
+# 仅 DAG（无 compose 依赖，最快）
+make lab-up-dag
+curl http://localhost:8085/api/status   # 或 CLI: lab/bin/lab-dag graph load --graph echo
+make lab-down-dag
+
+# 多域组合
+make lab-up LAB_MODULES=kv,dag
+make lab-down LAB_MODULES=dag       # 仅停 dag，不影响 kv
+```
+
+域与 compose profile 对应：`kv` → redis、`config` → consul、`queue` → nats；`lb` / `dag` / `ui` 无外部中间件。按域 `down` 只停对应进程，compose 容器需 `make lab-down` 全量清理。
 
 ## 配置
 

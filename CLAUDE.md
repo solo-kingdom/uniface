@@ -17,12 +17,14 @@ make mod      # 整理所有模块依赖（根模块 + 子模块）
 make build    # 构建所有模块
 make test     # 测试所有模块
 make clean    # 清理 bin/、*.test、*.out
-make lab-build  # 编译 lab 验证台（独立子模块）
+make lab-build  # 编译 lab 验证台（全部六域）
 make lab-up     # 启动 lab 环境（compose + 六进程）
 make lab-down   # 停止 lab 环境
+make lab-up-dag # 按域启动（kv|config|lb|queue|dag|ui）
+make lab-up LAB_MODULES=kv,dag  # 多域子集
 ```
 
-**Lab 验证台**: 详见 [`lab/README.md`](lab/README.md)。`lab/` 为独立 Go 子模块，不参与 `make test` 与版本 tag 发布。
+**Lab 验证台**: 详见 [`lab/README.md`](lab/README.md)。`lab/` 为独立 Go 子模块，不参与 `make test` 与版本 tag 发布。支持 `lab-build-<域>` / `lab-up-<域>` / `lab-down-<域>` 及 `LAB_MODULES` 变量按域构建与启停。
 
 运行单个测试：
 ```bash
