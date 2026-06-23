@@ -34,7 +34,7 @@ func EvalFieldPredicate(pred *dagv1.FieldPredicate, snapshot *dagv1.EntitySnapsh
 	if err != nil {
 		return false, err
 	}
-	val, err := resolveFieldPath(msg, pred.FieldPath)
+	val, err := ResolveFieldPath(msg, pred.FieldPath)
 	if err != nil {
 		return false, err
 	}
@@ -49,14 +49,16 @@ func EvalFieldPredicateWithMessage(pred *dagv1.FieldPredicate, snapshot *dagv1.E
 	if msg == nil {
 		return EvalFieldPredicate(pred, snapshot)
 	}
-	val, err := resolveFieldPath(msg, pred.FieldPath)
+	val, err := ResolveFieldPath(msg, pred.FieldPath)
 	if err != nil {
 		return false, err
 	}
 	return compareValue(val, pred.Op, pred.Value)
 }
 
-func resolveFieldPath(msg proto.Message, path string) (reflect.Value, error) {
+// ResolveFieldPath 按 protobuf 字段路径（含一层 repeated 索引）解析 message 的字段值。
+// path 为空返回错误。导出以供声明式 unit（如 HttpUnit 的 BodyTemplate / ResponseMapping payload_field）复用。
+func ResolveFieldPath(msg proto.Message, path string) (reflect.Value, error) {
 	if path == "" {
 		return reflect.Value{}, fmt.Errorf("empty field path")
 	}

@@ -57,7 +57,13 @@ func main() {
 			graph := fs.String("graph", "echo", "graph id")
 			entityID := fs.String("entity-id", "inst-001", "entity id")
 			payload := fs.String("payload", "hello", "payload")
+			mockAddr := fs.String("mock-http", "", "start built-in mock HTTP server at this addr (e.g. 127.0.0.1:18099) for http_call fixture")
 			_ = fs.Parse(os.Args[2:])
+			if *mockAddr != "" {
+				if err := rt.StartMockHTTPServer(*mockAddr); err != nil {
+					return fmt.Errorf("start mock http: %w", err)
+				}
+			}
 			if _, err := rt.LoadFixture(*graph); err != nil {
 				return err
 			}
@@ -68,7 +74,16 @@ func main() {
 			for i := 0; i < 20; i++ {
 				_ = rt.RunOnce(context.Background())
 			}
+			// 重新查询以反映 RunOnce 后的真实状态（inst 是 Start 时的快照）。
+			final, _ := rt.GetInstance(context.Background(), *entityID)
+			if final != nil {
+				inst = final
+			}
 			fmt.Printf("status=%v node=%s\n", inst.Status, inst.CurrentNodeId)
+			journal, _ := rt.Journal(context.Background(), *entityID)
+			for _, e := range journal {
+				fmt.Printf("  journal kind=%v node=%s reason=%q\n", e.Kind, e.NodeId, e.FailureReason)
+			}
 			return nil
 		})
 	case "status":
@@ -137,8 +152,12 @@ func serve(cfg *wiring.LabConfig) {
 		os.Exit(1)
 	}
 	defer rt.Close()
-	for _, g := range []string{"echo", "saga_compensate", "fork_join"} {
+	for _, g := range []string{"echo", "saga_compensate", "fork_join", "approval_branch", "http_call"} {
 		_, _ = rt.LoadFixture(g)
+	}
+	// 启动内置 mock HTTP 服务，作为 http_call fixture 的 HttpUnit 目标（url 直连 127.0.0.1:18099）。
+	if err := rt.StartMockHTTPServer("127.0.0.1:18099"); err != nil {
+		fmt.Fprintf(os.Stderr, "start mock http server: %v\n", err)
 	}
 	srv := labweb.NewServer(":8085", func(r chi.Router) {
 		daglab.RegisterAPI(r, rt)
@@ -164,6 +183,7 @@ func usage() {
   lab-dag graph load --file PATH
   lab-dag graph load --graph echo
   lab-dag start --graph echo --entity-id ID
+  lab-dag start --graph http-call --entity-id ID --mock-http 127.0.0.1:18099
   lab-dag status --entity-id ID
   lab-dag signal --entity-id ID --signal NAME
   lab-dag journal --entity-id ID

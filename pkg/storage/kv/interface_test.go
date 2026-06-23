@@ -199,12 +199,16 @@ func (m *mockStore) List(ctx context.Context, opts ...Option) ([]string, error) 
 
 	var keys []string
 	for k := range m.data {
-		if prefix == "" || strings.HasPrefix(k, prefix) {
-			key := k
-			if prefix != "" {
-				key = strings.TrimPrefix(k, prefix)
+		if prefix == "" {
+			// default 命名空间：仅返回未带 namespace 前缀的 key（mock 约定 namespace 形如 "ns:key"）。
+			if strings.Contains(k, ":") {
+				continue
 			}
-			keys = append(keys, key)
+			keys = append(keys, k)
+			continue
+		}
+		if strings.HasPrefix(k, prefix) {
+			keys = append(keys, strings.TrimPrefix(k, prefix))
 		}
 	}
 	return keys, nil

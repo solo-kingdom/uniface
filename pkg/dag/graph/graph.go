@@ -250,3 +250,31 @@ func GetNode(spec *dagv1.GraphSpec, nodeID string) (*dagv1.NodeDef, bool) {
 	n, ok := spec.Nodes[nodeID]
 	return n, ok
 }
+
+// ValidateComputeUnitDef 静态校验 ComputeUnitDef 声明式实现配置。
+//
+// 当前规则（spec dag-units / 设计 D2/D8）：
+//   - HttpUnit：service 与 url 至少一个非空，否则 ErrInvalidGraph
+//   - SideEffectClass SIDE_EFFECT_EXTERNAL 不允许与声明式 implementation 组合（EXTERNAL 保留给未来 outbox 模式）
+func ValidateComputeUnitDef(def *dagv1.ComputeUnitDef) error {
+	if def == nil {
+		return dag.ErrInvalidGraph
+	}
+	impl := def.GetImplementation()
+	if impl == nil {
+		return nil
+	}
+	if def.SideEffectClass == dagv1.SideEffectClass_SIDE_EFFECT_EXTERNAL {
+		return dag.ErrUnsupportedSideEffect
+	}
+	switch i := impl.(type) {
+	case *dagv1.ComputeUnitDef_Http:
+		if i.Http == nil {
+			return dag.ErrInvalidGraph
+		}
+		if i.Http.GetService() == "" && i.Http.GetUrl() == "" {
+			return fmt.Errorf("%w: http unit %q requires service or url", dag.ErrInvalidGraph, def.UnitId)
+		}
+	}
+	return nil
+}

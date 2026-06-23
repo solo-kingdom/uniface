@@ -9,6 +9,7 @@ package dagv1
 import (
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
+	durationpb "google.golang.org/protobuf/types/known/durationpb"
 	reflect "reflect"
 	sync "sync"
 	unsafe "unsafe"
@@ -74,6 +75,350 @@ func (SideEffectClass) EnumDescriptor() ([]byte, []int) {
 	return file_unit_proto_rawDescGZIP(), []int{0}
 }
 
+// Mode response 映射模式。
+type ResponseMapping_Mode int32
+
+const (
+	ResponseMapping_MODE_UNSPECIFIED ResponseMapping_Mode = 0
+	// MODE_AUTO 默认：2xx → update，response 反序列化为 payload_type_url proto 后包 Any。
+	ResponseMapping_MODE_AUTO ResponseMapping_Mode = 1
+	// MODE_MUTATION response body 视为 EntityMutation 的 JSON 表示，直接 apply。
+	ResponseMapping_MODE_MUTATION ResponseMapping_Mode = 2
+)
+
+// Enum value maps for ResponseMapping_Mode.
+var (
+	ResponseMapping_Mode_name = map[int32]string{
+		0: "MODE_UNSPECIFIED",
+		1: "MODE_AUTO",
+		2: "MODE_MUTATION",
+	}
+	ResponseMapping_Mode_value = map[string]int32{
+		"MODE_UNSPECIFIED": 0,
+		"MODE_AUTO":        1,
+		"MODE_MUTATION":    2,
+	}
+)
+
+func (x ResponseMapping_Mode) Enum() *ResponseMapping_Mode {
+	p := new(ResponseMapping_Mode)
+	*p = x
+	return p
+}
+
+func (x ResponseMapping_Mode) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (ResponseMapping_Mode) Descriptor() protoreflect.EnumDescriptor {
+	return file_unit_proto_enumTypes[1].Descriptor()
+}
+
+func (ResponseMapping_Mode) Type() protoreflect.EnumType {
+	return &file_unit_proto_enumTypes[1]
+}
+
+func (x ResponseMapping_Mode) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use ResponseMapping_Mode.Descriptor instead.
+func (ResponseMapping_Mode) EnumDescriptor() ([]byte, []int) {
+	return file_unit_proto_rawDescGZIP(), []int{1, 0}
+}
+
+// BodyTemplate request body 构造模板。
+// - field_path 为空（Level 0）：整个 snapshot.payload 序列化为 JSON body
+// - field_path 非空（Level 1）：取 snapshot.payload.<field_path> 子字段序列化
+type BodyTemplate struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	FieldPath     string                 `protobuf:"bytes,1,opt,name=field_path,json=fieldPath,proto3" json:"field_path,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *BodyTemplate) Reset() {
+	*x = BodyTemplate{}
+	mi := &file_unit_proto_msgTypes[0]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *BodyTemplate) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*BodyTemplate) ProtoMessage() {}
+
+func (x *BodyTemplate) ProtoReflect() protoreflect.Message {
+	mi := &file_unit_proto_msgTypes[0]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use BodyTemplate.ProtoReflect.Descriptor instead.
+func (*BodyTemplate) Descriptor() ([]byte, []int) {
+	return file_unit_proto_rawDescGZIP(), []int{0}
+}
+
+func (x *BodyTemplate) GetFieldPath() string {
+	if x != nil {
+		return x.FieldPath
+	}
+	return ""
+}
+
+// ResponseMapping 控制 HTTP response 如何转换为 EntityMutation。
+type ResponseMapping struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	Mode  ResponseMapping_Mode   `protobuf:"varint,1,opt,name=mode,proto3,enum=dag.v1.ResponseMapping_Mode" json:"mode,omitempty"`
+	// payload_type_url 反序列化目标 proto message 类型。空 = 复用输入 snapshot 的 type_url。
+	PayloadTypeUrl string `protobuf:"bytes,2,opt,name=payload_type_url,json=payloadTypeUrl,proto3" json:"payload_type_url,omitempty"`
+	// payload_field 从反序列化结果取子字段作为 payload（protobuf field path）。
+	PayloadField string `protobuf:"bytes,3,opt,name=payload_field,json=payloadField,proto3" json:"payload_field,omitempty"`
+	// on_success 覆盖默认 update 语义：COMPLETE 终止成功；FAIL 终止失败。
+	OnSuccess     TerminalOutcome `protobuf:"varint,4,opt,name=on_success,json=onSuccess,proto3,enum=dag.v1.TerminalOutcome" json:"on_success,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ResponseMapping) Reset() {
+	*x = ResponseMapping{}
+	mi := &file_unit_proto_msgTypes[1]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ResponseMapping) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ResponseMapping) ProtoMessage() {}
+
+func (x *ResponseMapping) ProtoReflect() protoreflect.Message {
+	mi := &file_unit_proto_msgTypes[1]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ResponseMapping.ProtoReflect.Descriptor instead.
+func (*ResponseMapping) Descriptor() ([]byte, []int) {
+	return file_unit_proto_rawDescGZIP(), []int{1}
+}
+
+func (x *ResponseMapping) GetMode() ResponseMapping_Mode {
+	if x != nil {
+		return x.Mode
+	}
+	return ResponseMapping_MODE_UNSPECIFIED
+}
+
+func (x *ResponseMapping) GetPayloadTypeUrl() string {
+	if x != nil {
+		return x.PayloadTypeUrl
+	}
+	return ""
+}
+
+func (x *ResponseMapping) GetPayloadField() string {
+	if x != nil {
+		return x.PayloadField
+	}
+	return ""
+}
+
+func (x *ResponseMapping) GetOnSuccess() TerminalOutcome {
+	if x != nil {
+		return x.OnSuccess
+	}
+	return TerminalOutcome_TERMINAL_OUTCOME_UNSPECIFIED
+}
+
+// RetryClassification 按状态码分类 HTTP 错误。
+type RetryClassification struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// retry_status_codes 命中即按 retry_policy 重试。默认 [502, 503, 504]。
+	RetryStatusCodes []int32 `protobuf:"varint,1,rep,packed,name=retry_status_codes,json=retryStatusCodes,proto3" json:"retry_status_codes,omitempty"`
+	// fail_status_codes 命中即产出 mutation.fail（不重试）。默认 [400, 401, 403, 404, 409, 422]。
+	FailStatusCodes []int32 `protobuf:"varint,2,rep,packed,name=fail_status_codes,json=failStatusCodes,proto3" json:"fail_status_codes,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
+}
+
+func (x *RetryClassification) Reset() {
+	*x = RetryClassification{}
+	mi := &file_unit_proto_msgTypes[2]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RetryClassification) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RetryClassification) ProtoMessage() {}
+
+func (x *RetryClassification) ProtoReflect() protoreflect.Message {
+	mi := &file_unit_proto_msgTypes[2]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RetryClassification.ProtoReflect.Descriptor instead.
+func (*RetryClassification) Descriptor() ([]byte, []int) {
+	return file_unit_proto_rawDescGZIP(), []int{2}
+}
+
+func (x *RetryClassification) GetRetryStatusCodes() []int32 {
+	if x != nil {
+		return x.RetryStatusCodes
+	}
+	return nil
+}
+
+func (x *RetryClassification) GetFailStatusCodes() []int32 {
+	if x != nil {
+		return x.FailStatusCodes
+	}
+	return nil
+}
+
+// HttpUnit 声明式 HTTP 计算单元配置。
+type HttpUnit struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// service 走注入的 HttpClientResolver 解析（优先）。
+	Service string `protobuf:"bytes,1,opt,name=service,proto3" json:"service,omitempty"`
+	// url 直连兜底（service 为空时使用）。
+	Url string `protobuf:"bytes,2,opt,name=url,proto3" json:"url,omitempty"`
+	// method HTTP 方法，默认 POST。
+	Method string `protobuf:"bytes,3,opt,name=method,proto3" json:"method,omitempty"`
+	// path 与解析出的 base URL 拼接。
+	Path string `protobuf:"bytes,4,opt,name=path,proto3" json:"path,omitempty"`
+	// headers 静态请求头，v1 不支持动态取值。
+	Headers map[string]string `protobuf:"bytes,5,rep,name=headers,proto3" json:"headers,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	// request_body request body 构造模板。
+	RequestBody *BodyTemplate `protobuf:"bytes,6,opt,name=request_body,json=requestBody,proto3" json:"request_body,omitempty"`
+	// response response → mutation 映射。
+	Response *ResponseMapping `protobuf:"bytes,7,opt,name=response,proto3" json:"response,omitempty"`
+	// timeout HTTP 调用超时，默认 30s。
+	Timeout *durationpb.Duration `protobuf:"bytes,8,opt,name=timeout,proto3" json:"timeout,omitempty"`
+	// retry_on 状态码重试分类。
+	RetryOn       *RetryClassification `protobuf:"bytes,9,opt,name=retry_on,json=retryOn,proto3" json:"retry_on,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *HttpUnit) Reset() {
+	*x = HttpUnit{}
+	mi := &file_unit_proto_msgTypes[3]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *HttpUnit) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*HttpUnit) ProtoMessage() {}
+
+func (x *HttpUnit) ProtoReflect() protoreflect.Message {
+	mi := &file_unit_proto_msgTypes[3]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use HttpUnit.ProtoReflect.Descriptor instead.
+func (*HttpUnit) Descriptor() ([]byte, []int) {
+	return file_unit_proto_rawDescGZIP(), []int{3}
+}
+
+func (x *HttpUnit) GetService() string {
+	if x != nil {
+		return x.Service
+	}
+	return ""
+}
+
+func (x *HttpUnit) GetUrl() string {
+	if x != nil {
+		return x.Url
+	}
+	return ""
+}
+
+func (x *HttpUnit) GetMethod() string {
+	if x != nil {
+		return x.Method
+	}
+	return ""
+}
+
+func (x *HttpUnit) GetPath() string {
+	if x != nil {
+		return x.Path
+	}
+	return ""
+}
+
+func (x *HttpUnit) GetHeaders() map[string]string {
+	if x != nil {
+		return x.Headers
+	}
+	return nil
+}
+
+func (x *HttpUnit) GetRequestBody() *BodyTemplate {
+	if x != nil {
+		return x.RequestBody
+	}
+	return nil
+}
+
+func (x *HttpUnit) GetResponse() *ResponseMapping {
+	if x != nil {
+		return x.Response
+	}
+	return nil
+}
+
+func (x *HttpUnit) GetTimeout() *durationpb.Duration {
+	if x != nil {
+		return x.Timeout
+	}
+	return nil
+}
+
+func (x *HttpUnit) GetRetryOn() *RetryClassification {
+	if x != nil {
+		return x.RetryOn
+	}
+	return nil
+}
+
 // ComputeUnitDef 计算单元定义。
 type ComputeUnitDef struct {
 	state           protoimpl.MessageState `protogen:"open.v1"`
@@ -82,13 +427,19 @@ type ComputeUnitDef struct {
 	OutputTypeKeys  []*EntityTypeKey       `protobuf:"bytes,3,rep,name=output_type_keys,json=outputTypeKeys,proto3" json:"output_type_keys,omitempty"`
 	SideEffectClass SideEffectClass        `protobuf:"varint,4,opt,name=side_effect_class,json=sideEffectClass,proto3,enum=dag.v1.SideEffectClass" json:"side_effect_class,omitempty"`
 	RetryPolicy     *RetryPolicy           `protobuf:"bytes,5,opt,name=retry_policy,json=retryPolicy,proto3" json:"retry_policy,omitempty"`
-	unknownFields   protoimpl.UnknownFields
-	sizeCache       protoimpl.SizeCache
+	// implementation 声明式实现配置。非空时引擎按类型构造适配器，与 RegisterComputeUnitImpl 注册互斥。
+	//
+	// Types that are valid to be assigned to Implementation:
+	//
+	//	*ComputeUnitDef_Http
+	Implementation isComputeUnitDef_Implementation `protobuf_oneof:"implementation"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
 }
 
 func (x *ComputeUnitDef) Reset() {
 	*x = ComputeUnitDef{}
-	mi := &file_unit_proto_msgTypes[0]
+	mi := &file_unit_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -100,7 +451,7 @@ func (x *ComputeUnitDef) String() string {
 func (*ComputeUnitDef) ProtoMessage() {}
 
 func (x *ComputeUnitDef) ProtoReflect() protoreflect.Message {
-	mi := &file_unit_proto_msgTypes[0]
+	mi := &file_unit_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -113,7 +464,7 @@ func (x *ComputeUnitDef) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ComputeUnitDef.ProtoReflect.Descriptor instead.
 func (*ComputeUnitDef) Descriptor() ([]byte, []int) {
-	return file_unit_proto_rawDescGZIP(), []int{0}
+	return file_unit_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *ComputeUnitDef) GetUnitId() string {
@@ -151,18 +502,76 @@ func (x *ComputeUnitDef) GetRetryPolicy() *RetryPolicy {
 	return nil
 }
 
+func (x *ComputeUnitDef) GetImplementation() isComputeUnitDef_Implementation {
+	if x != nil {
+		return x.Implementation
+	}
+	return nil
+}
+
+func (x *ComputeUnitDef) GetHttp() *HttpUnit {
+	if x != nil {
+		if x, ok := x.Implementation.(*ComputeUnitDef_Http); ok {
+			return x.Http
+		}
+	}
+	return nil
+}
+
+type isComputeUnitDef_Implementation interface {
+	isComputeUnitDef_Implementation()
+}
+
+type ComputeUnitDef_Http struct {
+	Http *HttpUnit `protobuf:"bytes,10,opt,name=http,proto3,oneof"`
+}
+
+func (*ComputeUnitDef_Http) isComputeUnitDef_Implementation() {}
+
 var File_unit_proto protoreflect.FileDescriptor
 
 const file_unit_proto_rawDesc = "" +
 	"\n" +
 	"\n" +
-	"unit.proto\x12\x06dag.v1\x1a\fcommon.proto\"\xa4\x02\n" +
+	"unit.proto\x12\x06dag.v1\x1a\fcommon.proto\x1a\x1egoogle/protobuf/duration.proto\"-\n" +
+	"\fBodyTemplate\x12\x1d\n" +
+	"\n" +
+	"field_path\x18\x01 \x01(\tR\tfieldPath\"\x8a\x02\n" +
+	"\x0fResponseMapping\x120\n" +
+	"\x04mode\x18\x01 \x01(\x0e2\x1c.dag.v1.ResponseMapping.ModeR\x04mode\x12(\n" +
+	"\x10payload_type_url\x18\x02 \x01(\tR\x0epayloadTypeUrl\x12#\n" +
+	"\rpayload_field\x18\x03 \x01(\tR\fpayloadField\x126\n" +
+	"\n" +
+	"on_success\x18\x04 \x01(\x0e2\x17.dag.v1.TerminalOutcomeR\tonSuccess\">\n" +
+	"\x04Mode\x12\x14\n" +
+	"\x10MODE_UNSPECIFIED\x10\x00\x12\r\n" +
+	"\tMODE_AUTO\x10\x01\x12\x11\n" +
+	"\rMODE_MUTATION\x10\x02\"o\n" +
+	"\x13RetryClassification\x12,\n" +
+	"\x12retry_status_codes\x18\x01 \x03(\x05R\x10retryStatusCodes\x12*\n" +
+	"\x11fail_status_codes\x18\x02 \x03(\x05R\x0ffailStatusCodes\"\xb2\x03\n" +
+	"\bHttpUnit\x12\x18\n" +
+	"\aservice\x18\x01 \x01(\tR\aservice\x12\x10\n" +
+	"\x03url\x18\x02 \x01(\tR\x03url\x12\x16\n" +
+	"\x06method\x18\x03 \x01(\tR\x06method\x12\x12\n" +
+	"\x04path\x18\x04 \x01(\tR\x04path\x127\n" +
+	"\aheaders\x18\x05 \x03(\v2\x1d.dag.v1.HttpUnit.HeadersEntryR\aheaders\x127\n" +
+	"\frequest_body\x18\x06 \x01(\v2\x14.dag.v1.BodyTemplateR\vrequestBody\x123\n" +
+	"\bresponse\x18\a \x01(\v2\x17.dag.v1.ResponseMappingR\bresponse\x123\n" +
+	"\atimeout\x18\b \x01(\v2\x19.google.protobuf.DurationR\atimeout\x126\n" +
+	"\bretry_on\x18\t \x01(\v2\x1b.dag.v1.RetryClassificationR\aretryOn\x1a:\n" +
+	"\fHeadersEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\xde\x02\n" +
 	"\x0eComputeUnitDef\x12\x17\n" +
 	"\aunit_id\x18\x01 \x01(\tR\x06unitId\x12;\n" +
 	"\x0einput_type_key\x18\x02 \x01(\v2\x15.dag.v1.EntityTypeKeyR\finputTypeKey\x12?\n" +
 	"\x10output_type_keys\x18\x03 \x03(\v2\x15.dag.v1.EntityTypeKeyR\x0eoutputTypeKeys\x12C\n" +
 	"\x11side_effect_class\x18\x04 \x01(\x0e2\x17.dag.v1.SideEffectClassR\x0fsideEffectClass\x126\n" +
-	"\fretry_policy\x18\x05 \x01(\v2\x13.dag.v1.RetryPolicyR\vretryPolicy*z\n" +
+	"\fretry_policy\x18\x05 \x01(\v2\x13.dag.v1.RetryPolicyR\vretryPolicy\x12&\n" +
+	"\x04http\x18\n" +
+	" \x01(\v2\x10.dag.v1.HttpUnitH\x00R\x04httpB\x10\n" +
+	"\x0eimplementation*z\n" +
 	"\x0fSideEffectClass\x12\x1b\n" +
 	"\x17SIDE_EFFECT_UNSPECIFIED\x10\x00\x12\x14\n" +
 	"\x10SIDE_EFFECT_NONE\x10\x01\x12\x1a\n" +
@@ -181,24 +590,40 @@ func file_unit_proto_rawDescGZIP() []byte {
 	return file_unit_proto_rawDescData
 }
 
-var file_unit_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_unit_proto_msgTypes = make([]protoimpl.MessageInfo, 1)
+var file_unit_proto_enumTypes = make([]protoimpl.EnumInfo, 2)
+var file_unit_proto_msgTypes = make([]protoimpl.MessageInfo, 6)
 var file_unit_proto_goTypes = []any{
-	(SideEffectClass)(0),   // 0: dag.v1.SideEffectClass
-	(*ComputeUnitDef)(nil), // 1: dag.v1.ComputeUnitDef
-	(*EntityTypeKey)(nil),  // 2: dag.v1.EntityTypeKey
-	(*RetryPolicy)(nil),    // 3: dag.v1.RetryPolicy
+	(SideEffectClass)(0),        // 0: dag.v1.SideEffectClass
+	(ResponseMapping_Mode)(0),   // 1: dag.v1.ResponseMapping.Mode
+	(*BodyTemplate)(nil),        // 2: dag.v1.BodyTemplate
+	(*ResponseMapping)(nil),     // 3: dag.v1.ResponseMapping
+	(*RetryClassification)(nil), // 4: dag.v1.RetryClassification
+	(*HttpUnit)(nil),            // 5: dag.v1.HttpUnit
+	(*ComputeUnitDef)(nil),      // 6: dag.v1.ComputeUnitDef
+	nil,                         // 7: dag.v1.HttpUnit.HeadersEntry
+	(TerminalOutcome)(0),        // 8: dag.v1.TerminalOutcome
+	(*durationpb.Duration)(nil), // 9: google.protobuf.Duration
+	(*EntityTypeKey)(nil),       // 10: dag.v1.EntityTypeKey
+	(*RetryPolicy)(nil),         // 11: dag.v1.RetryPolicy
 }
 var file_unit_proto_depIdxs = []int32{
-	2, // 0: dag.v1.ComputeUnitDef.input_type_key:type_name -> dag.v1.EntityTypeKey
-	2, // 1: dag.v1.ComputeUnitDef.output_type_keys:type_name -> dag.v1.EntityTypeKey
-	0, // 2: dag.v1.ComputeUnitDef.side_effect_class:type_name -> dag.v1.SideEffectClass
-	3, // 3: dag.v1.ComputeUnitDef.retry_policy:type_name -> dag.v1.RetryPolicy
-	4, // [4:4] is the sub-list for method output_type
-	4, // [4:4] is the sub-list for method input_type
-	4, // [4:4] is the sub-list for extension type_name
-	4, // [4:4] is the sub-list for extension extendee
-	0, // [0:4] is the sub-list for field type_name
+	1,  // 0: dag.v1.ResponseMapping.mode:type_name -> dag.v1.ResponseMapping.Mode
+	8,  // 1: dag.v1.ResponseMapping.on_success:type_name -> dag.v1.TerminalOutcome
+	7,  // 2: dag.v1.HttpUnit.headers:type_name -> dag.v1.HttpUnit.HeadersEntry
+	2,  // 3: dag.v1.HttpUnit.request_body:type_name -> dag.v1.BodyTemplate
+	3,  // 4: dag.v1.HttpUnit.response:type_name -> dag.v1.ResponseMapping
+	9,  // 5: dag.v1.HttpUnit.timeout:type_name -> google.protobuf.Duration
+	4,  // 6: dag.v1.HttpUnit.retry_on:type_name -> dag.v1.RetryClassification
+	10, // 7: dag.v1.ComputeUnitDef.input_type_key:type_name -> dag.v1.EntityTypeKey
+	10, // 8: dag.v1.ComputeUnitDef.output_type_keys:type_name -> dag.v1.EntityTypeKey
+	0,  // 9: dag.v1.ComputeUnitDef.side_effect_class:type_name -> dag.v1.SideEffectClass
+	11, // 10: dag.v1.ComputeUnitDef.retry_policy:type_name -> dag.v1.RetryPolicy
+	5,  // 11: dag.v1.ComputeUnitDef.http:type_name -> dag.v1.HttpUnit
+	12, // [12:12] is the sub-list for method output_type
+	12, // [12:12] is the sub-list for method input_type
+	12, // [12:12] is the sub-list for extension type_name
+	12, // [12:12] is the sub-list for extension extendee
+	0,  // [0:12] is the sub-list for field type_name
 }
 
 func init() { file_unit_proto_init() }
@@ -207,13 +632,16 @@ func file_unit_proto_init() {
 		return
 	}
 	file_common_proto_init()
+	file_unit_proto_msgTypes[4].OneofWrappers = []any{
+		(*ComputeUnitDef_Http)(nil),
+	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_unit_proto_rawDesc), len(file_unit_proto_rawDesc)),
-			NumEnums:      1,
-			NumMessages:   1,
+			NumEnums:      2,
+			NumMessages:   6,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

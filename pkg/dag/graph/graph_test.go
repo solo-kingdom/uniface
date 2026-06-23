@@ -1,6 +1,7 @@
 package graph
 
 import (
+	"errors"
 	"testing"
 
 	dagv1 "github.com/solo-kingdom/uniface/api/dag/v1"
@@ -203,5 +204,75 @@ func TestValidateGraphSpecCycle(t *testing.T) {
 	}
 	if err := ValidateGraphSpec(spec); err == nil {
 		t.Fatal("expected cycle detection error")
+	}
+}
+
+func TestValidateComputeUnitDef_HttpUnitRequiresServiceOrURL(t *testing.T) {
+	tk := &dagv1.EntityTypeKey{EntityType: "order.Order", PayloadSchemaVersion: "v1"}
+	cases := []struct {
+		name string
+		def  *dagv1.ComputeUnitDef
+		ok   bool
+	}{
+		{
+			name: "service set",
+			def: &dagv1.ComputeUnitDef{
+				UnitId: "u1", InputTypeKey: tk,
+				Implementation: &dagv1.ComputeUnitDef_Http{Http: &dagv1.HttpUnit{Service: "order-svc"}},
+			},
+			ok: true,
+		},
+		{
+			name: "url set",
+			def: &dagv1.ComputeUnitDef{
+				UnitId: "u2", InputTypeKey: tk,
+				Implementation: &dagv1.ComputeUnitDef_Http{Http: &dagv1.HttpUnit{Url: "http://legacy/"}},
+			},
+			ok: true,
+		},
+		{
+			name: "both empty rejected",
+			def: &dagv1.ComputeUnitDef{
+				UnitId: "u3", InputTypeKey: tk,
+				Implementation: &dagv1.ComputeUnitDef_Http{Http: &dagv1.HttpUnit{}},
+			},
+			ok: false,
+		},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			err := ValidateComputeUnitDef(c.def)
+			if c.ok && err != nil {
+				t.Fatalf("expected ok, got %v", err)
+			}
+			if !c.ok && err == nil {
+				t.Fatal("expected validation error")
+			}
+		})
+	}
+}
+
+func TestValidateComputeUnitDef_ExternalRejectedWithImplementation(t *testing.T) {
+	tk := &dagv1.EntityTypeKey{EntityType: "order.Order", PayloadSchemaVersion: "v1"}
+	def := &dagv1.ComputeUnitDef{
+		UnitId:          "u",
+		InputTypeKey:    tk,
+		SideEffectClass: dagv1.SideEffectClass_SIDE_EFFECT_EXTERNAL,
+		Implementation:  &dagv1.ComputeUnitDef_Http{Http: &dagv1.HttpUnit{Url: "http://x"}},
+	}
+	err := ValidateComputeUnitDef(def)
+	if err == nil {
+		t.Fatal("expected EXTERNAL + implementation rejected")
+	}
+	if !errors.Is(err, dag.ErrUnsupportedSideEffect) {
+		t.Fatalf("expected ErrUnsupportedSideEffect, got %v", err)
+	}
+}
+
+func TestValidateComputeUnitDef_NoImplementationPasses(t *testing.T) {
+	tk := &dagv1.EntityTypeKey{EntityType: "order.Order", PayloadSchemaVersion: "v1"}
+	def := &dagv1.ComputeUnitDef{UnitId: "u", InputTypeKey: tk}
+	if err := ValidateComputeUnitDef(def); err != nil {
+		t.Fatalf("plain def should pass, got %v", err)
 	}
 }

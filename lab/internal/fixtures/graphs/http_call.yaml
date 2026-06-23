@@ -1,0 +1,27 @@
+graph_id: http_call
+version: v1
+entity_type: lab.Generic
+schema_version: v1
+entry: call
+nodes:
+  # 声明式 HttpUnit：url 直连 mock 服务。
+  # 输入为 lab.Generic（payload 为 google.protobuf.StringValue），
+  # mock 服务回写同类型 JSON（{"value":"..."}），HttpUnit 默认 MODE_AUTO → update。
+  call:
+    kind: compute
+    unit:
+      http:
+        url: http://127.0.0.1:18099
+        path: /echo
+        method: POST
+        retry_on:
+          retry_status_codes: [502, 503, 504]
+          fail_status_codes: [400, 404]
+    retry_policy:
+      max_attempts: 3
+      initial_backoff: 100ms
+    transitions:
+      - target: done
+  done:
+    kind: terminal
+    outcome: success

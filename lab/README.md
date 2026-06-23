@@ -66,6 +66,40 @@ LAB_KV_IMPL=boltdb ./bin/lab-kv get --key foo
 ./bin/lab-dag start --graph echo --entity-id inst-001
 ```
 
+### 声明式 HttpUnit
+
+DAG 支持**配置驱动**的 HTTP 计算单元——业务方无需为每个节点写 Go 代码，YAML 内联 `unit.http` 即可调用远程服务。fixture `http_call.yaml` 演示黄金路径：
+
+```yaml
+nodes:
+  call:
+    kind: compute
+    unit:
+      http:
+        url: http://127.0.0.1:18099   # service 走 Balancer 解析；url 直连兜底
+        path: /echo
+        method: POST
+        retry_on:
+          retry_status_codes: [502, 503, 504]
+          fail_status_codes: [400, 404]
+        response:
+          mode: auto                  # 默认：2xx → update；mode: mutation 直接 apply EntityMutation
+          payload_field: Order        # 可选：从 response 投影子字段
+    retry_policy:
+      max_attempts: 3
+    transitions:
+      - target: done
+```
+
+内置 mock HTTP 服务（`serve` 自动启动，或 `start --mock-http 127.0.0.1:18099` 显式启动）回写处理后的 payload，演示 2xx → update 全流程：
+
+```bash
+./bin/lab-dag start --graph http_call --entity-id h1 --payload hello --mock-http 127.0.0.1:18099
+# status=INSTANCE_STATUS_COMPLETED node=done
+```
+
+**Balancer 集成**：`http.service` 通过 `pkg/dag/units/balanceradapter` 包装 `Balancer[http.Client]` 解析实例（注入 `dag.WithHTTPResolver`）。lab wiring 默认注入 nil resolver（仅支持 `url` 直连）；业务进程可注入真实 Balancer 启用 `service` 路由。
+
 ## Docker Compose Profiles
 
 ```bash

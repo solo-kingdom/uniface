@@ -25,9 +25,10 @@ type Engine struct {
 	closed      bool
 }
 
-// NewEngine 创建内存引擎。
+// NewEngine 创建内存引擎。HttpClientResolver Option 会透传给 Registry，供声明式 HttpUnit 使用。
 func NewEngine(reg *Registry, store *LineStore, opts ...dag.Option) *Engine {
 	o := dag.MergeOptions(opts...)
+	reg.SetHttpClientResolver(o.HttpClientResolver)
 	return &Engine{
 		reg:      reg,
 		store:    store,
