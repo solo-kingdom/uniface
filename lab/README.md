@@ -123,6 +123,12 @@ curl http://localhost:8086/api/status                 # 域状态
 终态映射：`COMPLETED` → 200；`FAILED`/`COMPENSATED` → 500 并附失败原因。`daghttp` 域与
 `dag` 完全隔离：自带 `Runtime`、`lab.hello`/`lab.echo` unit 与 `fixtures/graphs/echo.yaml`。
 
+`lab-dag-http` 的运行时基于公共 `pkg/dag/invocation` 抽象装配：经 `invocation/memory`
+构造内存 Runtime，经 `invocation/loader` 解析 YAML 图，经 `invocation.Invoker` 完成
+「Start + Drain + Snapshot」请求式调用，经 `invocation` Codec 编解码 StringValue payload。
+两个 lab 进程（`lab-dag` 与 `lab-dag-http`）使用各自独立的运行时、fixtures 与 HTTP API，
+仅共享根模块公共 `pkg/dag` 抽象。
+
 ## Docker Compose Profiles
 
 ```bash

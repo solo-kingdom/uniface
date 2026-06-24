@@ -87,6 +87,8 @@ func (s *LineStore) GetInstance(ctx context.Context, ref *dagv1.EntityRef) (*dag
 	return cloneInstance(rec.instance), nil
 }
 
+// GetSnapshot 按实体引用读取当前快照（序列号 + 业务 payload）。
+// 返回深拷贝，避免调用方修改 LineStore 内部状态；实例不存在时返回 ErrInstanceNotFound。
 func (s *LineStore) GetSnapshot(ctx context.Context, ref *dagv1.EntityRef) (*dagv1.EntitySnapshot, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()

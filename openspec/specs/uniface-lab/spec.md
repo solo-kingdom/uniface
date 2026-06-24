@@ -169,12 +169,15 @@ TBD - created by archiving change add-uniface-lab. Update Purpose after archive.
 
 ### Requirement: DAG HTTP 服务验证 CLI
 
-系统 SHALL 提供独立 lab 模块 `lab-dag-http`（`lab/cmd/lab-dag-http`），对外仅暴露 `POST /echo` 端点，并通过统一 `pkg/rpc/server` 抽象启动（SHALL NOT 直接手写 `net/http` 样板）。每次 `/echo` 请求 SHALL 包装为一个 `EntityInstance`，经 `echo` 图（`lab.echo` compute → terminal）排空到终态后，将终态 payload 作为响应体返回；`COMPLETED` 映射 HTTP 200，`FAILED`/`COMPENSATED` 映射 HTTP 500 并附失败原因。该模块 SHALL 复用 `lab/internal/dag.Runtime`、`echo` fixture 与 `lab.echo` unit，SHALL NOT 修改 `lab-dag` 引擎验证台或其 HTTP API。
+系统 SHALL 提供独立 lab 模块 `lab-dag-http`（`lab/cmd/lab-dag-http`），对外仅暴露 `POST /echo` 端点，并通过统一 `pkg/rpc/server` 抽象启动（SHALL NOT 直接手写 `net/http` 样板）。每次 `/echo` 请求 SHALL 包装为一个独立 `EntityInstance`，经 `lab-dag-http` 自有 echo 图排空到终态后，将终态 payload 作为响应体返回；`COMPLETED` 映射 HTTP 200，`FAILED`/`COMPENSATED` 映射 HTTP 500 并附失败原因。
+
+`lab-dag-http` SHALL 与 `lab/internal/dag` 验证台完全隔离：不得复用 `lab/internal/dag.Runtime`、`lab/internal/dag` fixtures 或其 HTTP API。`lab-dag-http` MAY 复用根模块公共 `pkg/dag` Runtime/Invoker/Loader/Codec 抽象，并 SHALL 自行装配其验证所需的 graph、entity type 与 compute units。
 
 #### Scenario: echo 请求经 DAG 返回
 
 - **WHEN** 执行 `curl -X POST http://localhost:8086/echo -d 'hello'`
-- **THEN** 响应状态码为 200，响应体为 `echo:hello`（`lab.echo` unit 对输入加 `echo:` 前缀）
+- **THEN** 响应状态码为 200
+- **AND** 响应体为 `lab-dag-http` 自有 echo 图终态 payload
 
 #### Scenario: 终态失败映射 5xx
 
@@ -185,6 +188,12 @@ TBD - created by archiving change add-uniface-lab. Update Purpose after archive.
 
 - **WHEN** 执行 `lab-dag-http serve`
 - **THEN** 服务经 `pkg/rpc/server` 的 `Server` 抽象启动并监听 8086，而非进程内直接调用 `http.ListenAndServe`
+
+#### Scenario: 与 lab-dag 运行时隔离
+
+- **WHEN** 同时启动 `lab-dag serve` 与 `lab-dag-http serve`
+- **THEN** 两个进程使用各自独立的 DAG runtime、fixtures 与 HTTP API
+- **AND** `lab-dag-http` 不依赖 `lab/internal/dag.Runtime`
 
 ### Requirement: DAG HTTP 按域生命周期
 

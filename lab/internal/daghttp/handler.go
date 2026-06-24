@@ -3,6 +3,7 @@
 //
 // 本包与 lab/internal/dag 完全隔离：自带 Runtime、units 与 fixtures；
 // 通过统一 rpc.Server 抽象暴露，验证「同一 handler 可在不同传输间切换」。
+// Runtime 内部基于公共 pkg/dag/invocation 抽象装配。
 package daghttp
 
 import (
@@ -15,8 +16,8 @@ import (
 
 	dagv1 "github.com/solo-kingdom/uniface/api/dag/v1"
 	"github.com/solo-kingdom/uniface/lab/internal/web/api"
+	"github.com/solo-kingdom/uniface/pkg/dag/invocation"
 	rpcserver "github.com/solo-kingdom/uniface/pkg/rpc/server"
-	"google.golang.org/protobuf/types/known/wrapperspb"
 )
 
 const (
@@ -55,32 +56,24 @@ func (s *Service) Register(srv rpcserver.Server) error {
 
 // Echo 是 POST /echo 处理器：
 //  1. 读 Request.Body 作为 payload；
-//  2. 生成唯一 entityID，Start 一个 echo 图实例；
-//  3. 排空到终态（COMPLETED/FAILED/COMPENSATED）或达上限；
-//  4. 终态 payload（StringValue）作为响应体；
+//  2. 生成唯一 entityID，经公共 Invoker 一次性 Start+Drain+Snapshot；
+//  3. 终态 payload（StringValue）作为响应体，经公共 Codec 解码；
 //     COMPLETED → 200，否则 → 500 并附失败原因。
 func (s *Service) Echo(ctx context.Context, req *rpcserver.Request) (*rpcserver.Response, error) {
 	payload := string(req.Body)
 	entityID := s.nextEntityID()
 
-	if _, err := s.rt.Start(ctx, s.graphID, entityID, payload); err != nil {
-		s.rec.Record("echo", entityID, false, err)
-		return &rpcserver.Response{
-			StatusCode: http.StatusInternalServerError,
-			Body:       []byte("dag start failed: " + err.Error()),
-		}, nil
-	}
-
-	inst, err := s.rt.Drain(ctx, entityID)
+	res, err := s.rt.Invoke(ctx, s.graphID, entityID, payload)
 	if err != nil {
 		s.rec.Record("echo", entityID, false, err)
 		return &rpcserver.Response{
 			StatusCode: http.StatusInternalServerError,
-			Body:       []byte("dag drain failed: " + err.Error()),
+			Body:       []byte("dag invoke failed: " + err.Error()),
 		}, nil
 	}
-	status := inst.Status
-	body := s.snapshotPayload(ctx, entityID)
+
+	body := s.snapshotPayload(res)
+	status := res.Instance.Status
 	completed := status == dagv1.InstanceStatus_INSTANCE_STATUS_COMPLETED
 	s.rec.Record("echo", entityID, completed, nil)
 
@@ -125,15 +118,11 @@ func (s *Service) nextEntityID() string {
 	return fmt.Sprintf("http-%d-%d", time.Now().UnixNano(), n)
 }
 
-// snapshotPayload 读取实例终态 payload（StringValue），失败回退为原始字节。
-func (s *Service) snapshotPayload(ctx context.Context, entityID string) string {
-	snap, err := s.rt.Store().GetSnapshot(ctx, &dagv1.EntityRef{EntityId: entityID})
-	if err != nil || snap == nil || snap.Payload == nil {
+// snapshotPayload 经公共 Codec 解码终态 payload（StringValue），失败回退为原始字节。
+func (s *Service) snapshotPayload(res *invocation.InvokeResult) string {
+	sv, err := invocation.UnmarshalString(res.Snapshot)
+	if err != nil {
 		return ""
 	}
-	var sv wrapperspb.StringValue
-	if err := snap.Payload.UnmarshalTo(&sv); err != nil {
-		return string(snap.Payload.Value)
-	}
-	return sv.GetValue()
+	return sv
 }
