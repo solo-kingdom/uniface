@@ -23,10 +23,10 @@ make lab-up-dag
 curl http://localhost:8085/api/status   # 或 CLI: lab/bin/lab-dag graph load --graph echo
 make lab-down-dag
 
-# 仅 DAG HTTP 服务（POST /echo 经 DAG 排空返回 echo:<body>）
+# 仅 DAG HTTP 服务（前台运行，Ctrl+C 停止；POST /echo 经 hello→echo 图排空返回）
 make lab-up-dag-http
-curl -X POST http://localhost:8086/echo -d 'hello'   # → echo:hello
-make lab-down-dag-http
+curl -X POST http://localhost:8086/echo -d 'hello'   # → echo:hello, hello
+# Ctrl+C 停止；若由 make lab-up 后台启动，则用 make lab-down-dag-http
 
 # 多域组合
 make lab-up LAB_MODULES=kv,dag
@@ -34,7 +34,7 @@ make lab-up LAB_MODULES=dag,daghttp   # 同时启 lab-dag 与 lab-dag-http，不
 make lab-down LAB_MODULES=dag       # 仅停 dag，不影响 kv
 ```
 
-域与 compose profile 对应：`kv` → redis、`config` → consul、`queue` → nats；`lb` / `dag` / `ui` 无外部中间件。按域 `down` 只停对应进程，compose 容器需 `make lab-down` 全量清理。
+域与 compose profile 对应：`kv` → redis、`config` → consul、`queue` → nats；`lb` / `dag` / `ui` 无外部中间件。单域 `make lab-up-<域>` **前台阻塞**（Ctrl+C 停止）；聚合 `make lab-up` 仍后台启动，可用 `make lab-down` / `lab-down-<域>` 停止。
 
 ## 配置
 
@@ -111,18 +111,17 @@ nodes:
 
 `lab-dag-http` 演示「HTTP 请求经统一 RPC Server 抽象编排」：通过 `pkg/rpc/server`
 的 `NewHTTPServer` 启动（非直接手写 `net/http`），对外暴露 `POST /echo`。每次请求包装为
-一个 `EntityInstance`，经 echo 图（`lab.echo` compute → terminal）排空到终态后，终态
+一个 `EntityInstance`，经 echo 图（`lab.hello` → `lab.echo` → terminal）排空到终态后，终态
 payload 作为响应体返回：
 
 ```bash
-make lab-up-dag-http
-curl -X POST http://localhost:8086/echo -d 'hello'   # → echo:hello (200)
+make lab-up-dag-http   # 前台运行，Ctrl+C 停止
+curl -X POST http://localhost:8086/echo -d 'hello'   # → echo:hello, hello (200)
 curl http://localhost:8086/api/status                 # 域状态
-make lab-down-dag-http
 ```
 
-终态映射：`COMPLETED` → 200；`FAILED`/`COMPENSATED` → 500 并附失败原因。它复用
-`lab/internal/dag.Runtime`、`echo` fixture 与 `lab.echo` unit，不修改 `lab-dag` 引擎验证台。
+终态映射：`COMPLETED` → 200；`FAILED`/`COMPENSATED` → 500 并附失败原因。`daghttp` 域与
+`dag` 完全隔离：自带 `Runtime`、`lab.hello`/`lab.echo` unit 与 `fixtures/graphs/echo.yaml`。
 
 ## Docker Compose Profiles
 
@@ -145,7 +144,7 @@ lab/
 ├── internal/
 │   ├── wiring/    # 工厂层（yaml + 环境变量）
 │   ├── web/       # 共享 HTTP + htmx UI
-│   ├── kv/ config/ lb/ queue/ dag/ daghttp/
+│   ├── kv/ config/ lb/ queue/ dag/ daghttp/（含 fixtures）
 │   ├── conformance/
 │   └── fixtures/graphs/
 ├── scripts/       # 运维脚本（launch.sh：后台启动 + 记录 PID）

@@ -59,13 +59,22 @@ echo ">>> building $(MODULE_$(1)_BIN)"; \
 go build -o $(BIN_DIR)/$(MODULE_$(1)_BIN) ./cmd/$(MODULE_$(1)_BIN);
 endef
 
-define start-module-cmd
+# 聚合 up 仍后台启动（多进程并行）；单域 up-<m> 前台阻塞，Ctrl+C 停止。
+define start-module-bg-cmd
 echo ">>> starting $(MODULE_$(1)_BIN) (log: $(BIN_DIR)/$(MODULE_$(1)_BIN).log)"; \
 if [ "$(1)" = "ui" ]; then \
 	LAB_CONFIG=configs/default.yaml ./scripts/launch.sh $(BIN_DIR)/pids/$(MODULE_$(1)_BIN).pid $(BIN_DIR)/$(MODULE_$(1)_BIN).log ./$(BIN_DIR)/$(MODULE_$(1)_BIN); \
 else \
 	LAB_CONFIG=configs/default.yaml ./scripts/launch.sh $(BIN_DIR)/pids/$(MODULE_$(1)_BIN).pid $(BIN_DIR)/$(MODULE_$(1)_BIN).log ./$(BIN_DIR)/$(MODULE_$(1)_BIN) serve; \
 fi;
+endef
+
+define start-module-fg-cmd
+if [ "$(1)" = "ui" ]; then \
+	LAB_CONFIG=configs/default.yaml exec ./$(BIN_DIR)/$(MODULE_$(1)_BIN); \
+else \
+	LAB_CONFIG=configs/default.yaml exec ./$(BIN_DIR)/$(MODULE_$(1)_BIN) serve; \
+fi
 endef
 
 define echo-module-url-cmd
@@ -91,8 +100,9 @@ build-$(1):
 
 up-$(1): build-$(1)
 	@if [ -n "$(MODULE_$(1)_PROFILES)" ]; then docker compose --profile $(MODULE_$(1)_PROFILES) up -d; fi
-	@$(call start-module-cmd,$(1))
+	@echo ">>> starting $(MODULE_$(1)_BIN) (foreground, Ctrl+C to stop)"
 	@$(call echo-module-url-cmd,$(1))
+	@$(call start-module-fg-cmd,$(1))
 
 down-$(1):
 	@$(call down-module-cmd,$(1))
@@ -115,7 +125,7 @@ ifneq ($(UP_PROFILES),)
 		docker compose $(foreach p,$(UP_PROFILES),--profile $(p)) up -d; \
 	fi
 endif
-	@$(foreach m,$(SELECTED_MODULES),$(call start-module-cmd,$(m)))
+	@$(foreach m,$(SELECTED_MODULES),$(call start-module-bg-cmd,$(m)))
 	@$(foreach m,$(SELECTED_MODULES),$(call echo-module-url-cmd,$(m)))
 
 down:

@@ -75,6 +75,6 @@ func usage() {
   lab-dag-http serve [-addr :8086]
 
 端点:
-  POST /echo        请求体经 echo DAG 处理，返回 echo:<body>
+  POST /echo        请求体经 hello→echo DAG 处理，返回 echo:hello, <body>
   GET  /api/status  域状态`)
 }

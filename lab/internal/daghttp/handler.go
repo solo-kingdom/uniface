@@ -1,7 +1,7 @@
 // Package daghttp 把 HTTP 请求经 DAG echo 图排空到终态后返回，演示
 // 「请求 = 实例、排空到终态、终态 payload 作为响应」的请求编排范式。
 //
-// 它复用 lab/internal/dag.Runtime、echo fixture 与 lab.echo unit，零重复实现；
+// 本包与 lab/internal/dag 完全隔离：自带 Runtime、units 与 fixtures；
 // 通过统一 rpc.Server 抽象暴露，验证「同一 handler 可在不同传输间切换」。
 package daghttp
 
@@ -14,7 +14,6 @@ import (
 	"time"
 
 	dagv1 "github.com/solo-kingdom/uniface/api/dag/v1"
-	daglab "github.com/solo-kingdom/uniface/lab/internal/dag"
 	"github.com/solo-kingdom/uniface/lab/internal/web/api"
 	rpcserver "github.com/solo-kingdom/uniface/pkg/rpc/server"
 	"google.golang.org/protobuf/types/known/wrapperspb"
@@ -27,7 +26,7 @@ const (
 
 // Service 把 HTTP 请求经 DAG 排空到终态，并暴露 /api/status。
 type Service struct {
-	rt      *daglab.Runtime
+	rt      *Runtime
 	graphID string
 	rec     *api.OpRecorder
 
@@ -35,7 +34,7 @@ type Service struct {
 }
 
 // NewService 创建 daghttp 服务。graphID 为空时使用 "echo"。
-func NewService(rt *daglab.Runtime, graphID string) *Service {
+func NewService(rt *Runtime, graphID string) *Service {
 	if graphID == "" {
 		graphID = defaultGraphID
 	}

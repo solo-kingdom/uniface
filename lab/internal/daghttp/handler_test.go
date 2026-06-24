@@ -8,14 +8,13 @@ import (
 	"strings"
 	"testing"
 
-	daglab "github.com/solo-kingdom/uniface/lab/internal/dag"
 	rpcserver "github.com/solo-kingdom/uniface/pkg/rpc/server"
 )
 
 // setupService 构造一个加载了 echo fixture 的 Runtime 与 Service。
-func setupService(t *testing.T, graphID string) (*daglab.Runtime, *Service) {
+func setupService(t *testing.T, graphID string) (*Runtime, *Service) {
 	t.Helper()
-	rt, err := daglab.NewRuntime(filepath.Join("..", "dag", "..", "fixtures", "graphs"))
+	rt, err := NewRuntime(filepath.Join("fixtures", "graphs"))
 	if err != nil {
 		t.Fatalf("NewRuntime: %v", err)
 	}
@@ -27,7 +26,7 @@ func setupService(t *testing.T, graphID string) (*daglab.Runtime, *Service) {
 
 // setupFailingService 在临时目录构造一个入口即 failure terminal 的图，
 // 用于确定性验证失败终态 → 5xx。
-func setupFailingService(t *testing.T) (*daglab.Runtime, *Service) {
+func setupFailingService(t *testing.T) (*Runtime, *Service) {
 	t.Helper()
 	dir := t.TempDir()
 	// 入口节点为 failure terminal：实例一启动即 FAILED。
@@ -44,7 +43,7 @@ nodes:
 `), 0o644); err != nil {
 		t.Fatalf("write failterm.yaml: %v", err)
 	}
-	rt, err := daglab.NewRuntime(dir)
+	rt, err := NewRuntime(dir)
 	if err != nil {
 		t.Fatalf("NewRuntime: %v", err)
 	}
@@ -54,7 +53,7 @@ nodes:
 	return rt, NewService(rt, "failterm")
 }
 
-// TestEcho_GoldenPath 验证 echo:hello 黄金路径返回 200 与 echo:hello。
+// TestEcho_GoldenPath 验证 hello → echo 两节点黄金路径。
 func TestEcho_GoldenPath(t *testing.T) {
 	rt, svc := setupService(t, "echo")
 	defer rt.Close()
@@ -70,12 +69,12 @@ func TestEcho_GoldenPath(t *testing.T) {
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("StatusCode = %d, want 200; body=%q", resp.StatusCode, resp.Body)
 	}
-	if string(resp.Body) != "echo:hello" {
-		t.Fatalf("Body = %q, want echo:hello", resp.Body)
+	if string(resp.Body) != "echo:hello, hello" {
+		t.Fatalf("Body = %q, want echo:hello, hello", resp.Body)
 	}
 }
 
-// TestEcho_EmptyBody 验证空请求体也能完成（echo:）。
+// TestEcho_EmptyBody 验证空请求体也能完成（hello 节点仍加前缀）。
 func TestEcho_EmptyBody(t *testing.T) {
 	rt, svc := setupService(t, "echo")
 	defer rt.Close()
@@ -91,8 +90,8 @@ func TestEcho_EmptyBody(t *testing.T) {
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("StatusCode = %d, want 200; body=%q", resp.StatusCode, resp.Body)
 	}
-	if string(resp.Body) != "echo:" {
-		t.Fatalf("Body = %q, want echo:", resp.Body)
+	if string(resp.Body) != "echo:hello, " {
+		t.Fatalf("Body = %q, want echo:hello, ", resp.Body)
 	}
 }
 
