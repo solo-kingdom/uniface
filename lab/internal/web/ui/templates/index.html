@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{{.Title}}</title>
+  <script src="https://unpkg.com/htmx.org@2.0.4"></script>
+  <style>
+    body { font-family: system-ui, sans-serif; margin: 2rem; background: #0f172a; color: #e2e8f0; }
+    h1 { margin-bottom: 0.5rem; }
+    .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1rem; margin-top: 1.5rem; }
+    .card { background: #1e293b; border-radius: 12px; padding: 1rem; border: 1px solid #334155; }
+    .card h2 { margin: 0 0 0.5rem; font-size: 1.1rem; }
+    .offline { color: #f87171; }
+    .online { color: #4ade80; }
+    a { color: #93c5fd; text-decoration: none; }
+    .toolbar { margin-top: 1rem; }
+    button { background: #2563eb; color: white; border: none; padding: 0.5rem 1rem; border-radius: 8px; cursor: pointer; }
+  </style>
+</head>
+<body>
+  <h1>Uniface Lab</h1>
+  <p>五域能力验证台 — 聚合展示 KV / Config / LB / Queue / DAG 状态</p>
+  <div class="toolbar">
+    <button hx-get="/api/dashboard" hx-target="#cards" hx-swap="innerHTML">刷新</button>
+  </div>
+  <div id="cards" class="cards" hx-get="/api/dashboard" hx-trigger="load, every 5s" hx-swap="innerHTML">
+    加载中...
+  </div>
+</body>
+</html>

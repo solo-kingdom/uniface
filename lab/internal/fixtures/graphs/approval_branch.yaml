@@ -1,0 +1,27 @@
+graph_id: approval-branch
+version: v1
+entity_type: lab.Generic
+schema_version: v1
+entry: wait
+nodes:
+  # 等待外部审批信号。演示 condition: signal 路由能力。
+  wait:
+    kind: wait
+    signal: approval
+    deadline_seconds: 3600
+    on_timeout: failure
+    transitions:
+      - target: success
+        priority: 10
+        condition:
+          signal:
+            name: approval
+      - target: failure
+        condition:
+          always: true
+  success:
+    kind: terminal
+    outcome: success
+  failure:
+    kind: terminal
+    outcome: failure

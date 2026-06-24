@@ -1,0 +1,14 @@
+syntax = "proto3";
+
+package dag.v1;
+
+option go_package = "github.com/solo-kingdom/uniface/api/dag/v1;dagv1";
+
+import "common.proto";
+
+// EntityTypeRegistration 实体类型注册项。
+message EntityTypeRegistration {
+  EntityTypeKey type_key = 1;
+  string payload_type_url = 2;
+  repeated EntityTypeKey compatible_inputs = 3;
+}

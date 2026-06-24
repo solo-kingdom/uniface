@@ -1,4 +1,6 @@
-.PHONY: mod build test tag clean
+.PHONY: mod build test tag clean proto \
+	lab-build lab-up lab-down \
+	$(foreach m,kv config lb queue dag ui,lab-build-$(m) lab-up-$(m) lab-down-$(m))
 
 # Module paths
 ROOT_MODULE := .
@@ -12,6 +14,8 @@ SUB_MODULES := \
 	pkg/messaging/queue/natsjetstream \
 	pkg/messaging/queue/kafka
 
+LAB_MODULE := lab
+
 # Go parameters
 GOCMD := go
 GOBUILD := $(GOCMD) build
@@ -21,6 +25,12 @@ GOFLAGS := -v
 
 .PHONY: all
 all: mod build
+
+# Generate protobuf code
+.PHONY: proto
+proto:
+	@echo ">>> Generating protobuf code"
+	buf generate
 
 # Run go mod tidy for all modules
 .PHONY: mod
@@ -42,7 +52,7 @@ build:
 		(cd $$module && $(GOBUILD) $(GOFLAGS) ./...); \
 	done
 
-# Run tests for all modules
+# Run tests for all modules (lab excluded)
 .PHONY: test
 test:
 	@echo ">>> Testing root module"
@@ -51,6 +61,32 @@ test:
 		echo ">>> Testing $$module"; \
 		(cd $$module && $(GOTEST) $(GOFLAGS) ./...); \
 	done
+
+# Lab targets（LAB_MODULES 可选：all | kv,dag | "kv dag"）
+LAB_MAKE_OPTS := $(if $(LAB_MODULES),LAB_MODULES="$(LAB_MODULES)",)
+
+define lab-forward-targets
+.PHONY: lab-build-$(1) lab-up-$(1) lab-down-$(1)
+lab-build-$(1):
+	$(MAKE) -C $(LAB_MODULE) build-$(1)
+
+lab-up-$(1):
+	$(MAKE) -C $(LAB_MODULE) up-$(1)
+
+lab-down-$(1):
+	$(MAKE) -C $(LAB_MODULE) down-$(1)
+endef
+
+$(foreach m,kv config lb queue dag ui,$(eval $(call lab-forward-targets,$(m))))
+
+lab-build:
+	$(MAKE) -C $(LAB_MODULE) build $(LAB_MAKE_OPTS)
+
+lab-up:
+	$(MAKE) -C $(LAB_MODULE) up $(LAB_MAKE_OPTS)
+
+lab-down:
+	$(MAKE) -C $(LAB_MODULE) down $(LAB_MAKE_OPTS)
 
 # Create version tags for root module and all submodules
 # Usage: make tag V=v0.2.0          (local only)
@@ -78,9 +114,17 @@ help:
 	@echo "Usage: make [target]"
 	@echo ""
 	@echo "Targets:"
+	@echo "  proto         Generate protobuf code from api/dag/v1"
 	@echo "  mod           Run go mod tidy for all modules"
 	@echo "  build         Build all modules"
-	@echo "  test          Run tests for all modules"
+	@echo "  test          Run tests for all modules (excludes lab)"
+	@echo "  lab-build     Build lab CLI binaries (all domains)"
+	@echo "  lab-up        Start lab compose + serve processes (all domains)"
+	@echo "  lab-down      Stop lab processes and compose (all domains)"
+	@echo "  lab-build-<m> Build one domain (kv|config|lb|queue|dag|ui)"
+	@echo "  lab-up-<m>    Start one domain (e.g. lab-up-dag)"
+	@echo "  lab-down-<m>  Stop one domain process only"
+	@echo "  LAB_MODULES   Subset for lab-build/up/down (e.g. LAB_MODULES=kv,dag)"
 	@echo "  tag           Create version tags (V=vX.Y.Z, PUSH=1 to push)"
 	@echo "  clean         Clean build artifacts"
 	@echo "  help          Show this help message"

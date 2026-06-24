@@ -1,0 +1,58 @@
+syntax = "proto3";
+
+package dag.v1;
+
+option go_package = "github.com/solo-kingdom/uniface/api/dag/v1;dagv1";
+
+import "google/protobuf/duration.proto";
+
+// EntityRef 标识一条实体实例线。
+message EntityRef {
+  string entity_id = 1;
+}
+
+// EntityTypeKey 实体类型二元组。
+message EntityTypeKey {
+  string entity_type = 1;
+  string payload_schema_version = 2;
+}
+
+// GraphVersion 图版本标识。
+message GraphVersion {
+  string graph_id = 1;
+  string version = 2;
+}
+
+// InstanceStatus 实例运行状态。
+enum InstanceStatus {
+  INSTANCE_STATUS_UNSPECIFIED = 0;
+  INSTANCE_STATUS_RUNNING = 1;
+  INSTANCE_STATUS_WAITING = 2;
+  INSTANCE_STATUS_COMPENSATING = 3;
+  INSTANCE_STATUS_COMPLETED = 4;
+  INSTANCE_STATUS_FAILED = 5;
+  INSTANCE_STATUS_COMPENSATED = 6;
+  INSTANCE_STATUS_CANCELLED = 7;
+}
+
+// GraphPinPolicy 图版本绑定策略。
+enum GraphPinPolicy {
+  GRAPH_PIN_POLICY_UNSPECIFIED = 0;
+  GRAPH_PIN_ON_START = 1;
+  GRAPH_PIN_ON_NODE = 2;
+  GRAPH_PIN_EXPLICIT = 3;
+}
+
+// TerminalOutcome 终止节点结果。
+enum TerminalOutcome {
+  TERMINAL_OUTCOME_UNSPECIFIED = 0;
+  TERMINAL_OUTCOME_SUCCESS = 1;
+  TERMINAL_OUTCOME_FAILURE = 2;
+}
+
+// RetryPolicy 重试策略。
+message RetryPolicy {
+  int32 max_attempts = 1;
+  google.protobuf.Duration initial_backoff = 2;
+  google.protobuf.Duration max_backoff = 3;
+}

@@ -1,0 +1,18 @@
+syntax = "proto3";
+
+package dag.testpb;
+
+option go_package = "github.com/solo-kingdom/uniface/pkg/dag/testpb;testpb";
+
+message Order {
+  string order_id = 1;
+  double amount = 2;
+  string status = 3;
+  bool approved = 4;
+}
+
+// Wrapper 用于测试 BodyTemplate Level 1（字段路径）与 ResponseMapping payload_field 投影。
+message Wrapper {
+  Order order = 1;
+  string metadata = 2;
+}

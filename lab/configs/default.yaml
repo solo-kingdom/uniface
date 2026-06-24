@@ -1,0 +1,31 @@
+kv:
+  impl: redis
+  addr: localhost:6379
+  path: /tmp/uniface-lab/kv.bolt
+
+config:
+  impl: consul
+  addr: localhost:8500
+  prefix: lab/
+
+lb:
+  algo: roundrobin
+
+queue:
+  impl: nats
+  addr: nats://localhost:4222
+  brokers:
+    - localhost:9092
+  username: guest
+  password: guest
+
+dag:
+  store: memory
+  fixtures_dir: internal/fixtures/graphs
+
+services:
+  kv: http://localhost:8081
+  config: http://localhost:8082
+  lb: http://localhost:8083
+  queue: http://localhost:8084
+  dag: http://localhost:8085

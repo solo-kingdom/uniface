@@ -1,0 +1,85 @@
+syntax = "proto3";
+
+package dag.v1;
+
+option go_package = "github.com/solo-kingdom/uniface/api/dag/v1;dagv1";
+
+import "common.proto";
+import "google/protobuf/duration.proto";
+
+// SideEffectClass 副作用分类。
+enum SideEffectClass {
+  SIDE_EFFECT_UNSPECIFIED = 0;
+  SIDE_EFFECT_NONE = 1;
+  SIDE_EFFECT_IDEMPOTENT = 2;
+  SIDE_EFFECT_EXTERNAL = 3;
+}
+
+// BodyTemplate request body 构造模板。
+// - field_path 为空（Level 0）：整个 snapshot.payload 序列化为 JSON body
+// - field_path 非空（Level 1）：取 snapshot.payload.<field_path> 子字段序列化
+message BodyTemplate {
+  string field_path = 1;
+}
+
+// ResponseMapping 控制 HTTP response 如何转换为 EntityMutation。
+message ResponseMapping {
+  // Mode response 映射模式。
+  enum Mode {
+    MODE_UNSPECIFIED = 0;
+    // MODE_AUTO 默认：2xx → update，response 反序列化为 payload_type_url proto 后包 Any。
+    MODE_AUTO = 1;
+    // MODE_MUTATION response body 视为 EntityMutation 的 JSON 表示，直接 apply。
+    MODE_MUTATION = 2;
+  }
+  Mode mode = 1;
+  // payload_type_url 反序列化目标 proto message 类型。空 = 复用输入 snapshot 的 type_url。
+  string payload_type_url = 2;
+  // payload_field 从反序列化结果取子字段作为 payload（protobuf field path）。
+  string payload_field = 3;
+  // on_success 覆盖默认 update 语义：COMPLETE 终止成功；FAIL 终止失败。
+  TerminalOutcome on_success = 4;
+}
+
+// RetryClassification 按状态码分类 HTTP 错误。
+message RetryClassification {
+  // retry_status_codes 命中即按 retry_policy 重试。默认 [502, 503, 504]。
+  repeated int32 retry_status_codes = 1;
+  // fail_status_codes 命中即产出 mutation.fail（不重试）。默认 [400, 401, 403, 404, 409, 422]。
+  repeated int32 fail_status_codes = 2;
+}
+
+// HttpUnit 声明式 HTTP 计算单元配置。
+message HttpUnit {
+  // service 走注入的 HttpClientResolver 解析（优先）。
+  string service = 1;
+  // url 直连兜底（service 为空时使用）。
+  string url = 2;
+  // method HTTP 方法，默认 POST。
+  string method = 3;
+  // path 与解析出的 base URL 拼接。
+  string path = 4;
+  // headers 静态请求头，v1 不支持动态取值。
+  map<string, string> headers = 5;
+  // request_body request body 构造模板。
+  BodyTemplate request_body = 6;
+  // response response → mutation 映射。
+  ResponseMapping response = 7;
+  // timeout HTTP 调用超时，默认 30s。
+  google.protobuf.Duration timeout = 8;
+  // retry_on 状态码重试分类。
+  RetryClassification retry_on = 9;
+}
+
+// ComputeUnitDef 计算单元定义。
+message ComputeUnitDef {
+  string unit_id = 1;
+  EntityTypeKey input_type_key = 2;
+  repeated EntityTypeKey output_type_keys = 3;
+  SideEffectClass side_effect_class = 4;
+  RetryPolicy retry_policy = 5;
+  // implementation 声明式实现配置。非空时引擎按类型构造适配器，与 RegisterComputeUnitImpl 注册互斥。
+  oneof implementation {
+    HttpUnit http = 10;
+  }
+}
