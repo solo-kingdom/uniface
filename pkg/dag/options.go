@@ -12,6 +12,14 @@ type Options struct {
 	SchedulerInterval  time.Duration
 	// HttpClientResolver 用于声明式 HttpUnit 解析服务实例。nil 时 HttpUnit 仅支持 url 直连。
 	HttpClientResolver HttpClientResolver
+	// DrainMaxHops >0 时覆盖 DrainInstance 的 hop 上限推导值。
+	DrainMaxHops int
+	// DrainFactor 推导 hop 上限时节点数系数，默认 4。
+	DrainFactor int
+	// DrainAbsoluteMax DrainInstance hop 绝对硬顶，默认 1000。
+	DrainAbsoluteMax int
+	// DrainMinHops 推导 hop 下限，默认 1。
+	DrainMinHops int
 }
 
 // RetryOptions 重试配置。
@@ -62,6 +70,27 @@ func WithSchedulerInterval(d time.Duration) Option {
 func WithHttpClientResolver(r HttpClientResolver) Option {
 	return func(o *Options) {
 		o.HttpClientResolver = r
+	}
+}
+
+// WithDrainMaxHops 覆盖 DrainInstance 的 hop 上限（测试或特殊场景用）。
+func WithDrainMaxHops(n int) Option {
+	return func(o *Options) {
+		o.DrainMaxHops = n
+	}
+}
+
+// WithDrainFactor 设置 DrainInstance hop 上限推导系数（节点数 × 系数）。
+func WithDrainFactor(n int) Option {
+	return func(o *Options) {
+		o.DrainFactor = n
+	}
+}
+
+// WithDrainAbsoluteMax 设置 DrainInstance hop 绝对硬顶。
+func WithDrainAbsoluteMax(n int) Option {
+	return func(o *Options) {
+		o.DrainAbsoluteMax = n
 	}
 }
 

@@ -17,10 +17,11 @@ make mod      # 整理所有模块依赖（根模块 + 子模块）
 make build    # 构建所有模块
 make test     # 测试所有模块
 make clean    # 清理 bin/、*.test、*.out
-make lab-build  # 编译 lab 验证台（全部六域）
-make lab-up     # 启动 lab 环境（compose + 六进程）
+make lab-build  # 编译 lab 验证台（全部七域）
+make lab-up     # 启动 lab 环境（compose + 七进程）
 make lab-down   # 停止 lab 环境
-make lab-up-dag # 按域启动（kv|config|lb|queue|dag|ui）
+make lab-up-dag      # 按域启动（kv|config|lb|queue|dag|ui）
+make lab-up-dag-http # 按域启动 DAG HTTP 服务（端口 8086，POST /echo）
 make lab-up LAB_MODULES=kv,dag  # 多域子集
 ```
 
@@ -53,6 +54,7 @@ pkg/<domain>/<feature>/
 - **`config.Storage`** (`pkg/storage/config/`、`pkg/rpc/governance/config/`) — 非泛型。在 CRUD 基础上增加 watch/subscribe 语义（`Watch`、`WatchPrefix`、`Handler` 回调）。
 - **`Balancer[T any]`** (`pkg/rpc/governance/loadbalancer/`) — 泛型，参数化为客户端类型。方法：`Select`、`SelectClient`、`Add/Remove/Update`、`GetAll`、`Close`。定义 `Instance` 结构体（ID、Address、Port、Weight、Metadata）。
 - **`shard.Manager`** (`pkg/rpc/governance/loadbalancer/shard/`) — 非泛型。通过组合 `Balancer[interface{}]` 实现基于 key 的路由。
+- **`rpc.Server`** (`pkg/rpc/server/`) — 非泛型，传输无关的统一服务抽象。方法：`Handle`（注册 `Route`+`Handler`）、`Start`（阻塞启动）、`Shutdown`（优雅关闭）、`Close`。`Handler` 签名 `func(ctx, *Request) (*Response, error)`，`Request`/`Response` 为最小信封（Method/Path/Header/Body、StatusCode/Header/Body）。`Transport` 接口把路由集合物化为具体传输监听（`Serve`/`Shutdown`/`Close`）；`Middleware` 为 `func(Handler) Handler` 洋葱链。`BaseServer` 持有路由表 + Options，委托 Transport。首个实现 `pkg/rpc/server/http` 仅用标准库 `net/http`（便捷构造 `NewHTTPServer`），保持根模块零依赖。
 
 ### 结构模式
 

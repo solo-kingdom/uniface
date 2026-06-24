@@ -34,13 +34,27 @@ eng := memory.NewEngine(reg, store)
 // 注册类型、图、计算单元 ...
 inst, err := eng.StartInstance(ctx, &dagv1.StartInstanceRequest{...})
 
+// RunOnce：单步调度原语，每次至多推进一个实例的一个 hop。
 for inst.Status == RUNNING {
     _ = eng.RunOnce(ctx)
 }
 
-// 等待节点收到信号
+// DrainInstance：循环 RunOnce 直至终态或 WAITING（需外部信号时提前返回）。
+inst, err = eng.DrainInstance(ctx, inst.Ref)
+
+// 等待节点收到信号后再继续排空
 _ = eng.DeliverSignal(ctx, &dagv1.SignalDelivery{...})
+inst, err = eng.DrainInstance(ctx, inst.Ref)
 ```
+
+## RunOnce 与 DrainInstance
+
+| API | 语义 |
+|-----|------|
+| `RunOnce` | 调度器单步原语：扫描 store 中所有可运行实例，对每个实例至多执行 **一个 hop** |
+| `DrainInstance` | 对**单一实例**循环 `RunOnce`，直至终态（`COMPLETED`/`FAILED`/`COMPENSATED`/`CANCELLED`）、`WAITING`（阻塞于外部信号）、`ctx` 取消或 hop 上限耗尽 |
+
+hop 上限默认由图节点数 × 系数（4）推导，受绝对硬顶（1000）约束；可通过 `WithDrainMaxHops` 覆盖。`WAITING` 时正常返回（非错误），调用方须 `DeliverSignal` 后再 `DrainInstance`。
 
 ## 黄金路径
 

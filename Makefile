@@ -1,6 +1,7 @@
 .PHONY: mod build test tag clean proto \
 	lab-build lab-up lab-down \
-	$(foreach m,kv config lb queue dag ui,lab-build-$(m) lab-up-$(m) lab-down-$(m))
+	$(foreach m,kv config lb queue dag ui,lab-build-$(m) lab-up-$(m) lab-down-$(m)) \
+	lab-build-dag-http lab-up-dag-http lab-down-dag-http
 
 # Module paths
 ROOT_MODULE := .
@@ -79,6 +80,16 @@ endef
 
 $(foreach m,kv config lb queue dag ui,$(eval $(call lab-forward-targets,$(m))))
 
+# lab-dag-http 按域转发（lab 模块注册键为 daghttp，端口 8086）。
+lab-build-dag-http:
+	$(MAKE) -C $(LAB_MODULE) build-daghttp
+
+lab-up-dag-http:
+	$(MAKE) -C $(LAB_MODULE) up-daghttp
+
+lab-down-dag-http:
+	$(MAKE) -C $(LAB_MODULE) down-daghttp
+
 lab-build:
 	$(MAKE) -C $(LAB_MODULE) build $(LAB_MAKE_OPTS)
 
@@ -122,7 +133,7 @@ help:
 	@echo "  lab-up        Start lab compose + serve processes (all domains)"
 	@echo "  lab-down      Stop lab processes and compose (all domains)"
 	@echo "  lab-build-<m> Build one domain (kv|config|lb|queue|dag|ui)"
-	@echo "  lab-up-<m>    Start one domain (e.g. lab-up-dag)"
+	@echo "  lab-up-<m>    Start one domain (e.g. lab-up-dag, lab-up-dag-http)"
 	@echo "  lab-down-<m>  Stop one domain process only"
 	@echo "  LAB_MODULES   Subset for lab-build/up/down (e.g. LAB_MODULES=kv,dag)"
 	@echo "  tag           Create version tags (V=vX.Y.Z, PUSH=1 to push)"

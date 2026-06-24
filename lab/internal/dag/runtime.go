@@ -277,6 +277,13 @@ func (rt *Runtime) RunOnce(ctx context.Context) error {
 	return nil
 }
 
+// Drain 排空实例至终态或 WAITING。
+func (rt *Runtime) Drain(ctx context.Context, entityID string, opts ...dag.Option) (*dagv1.EntityInstance, error) {
+	inst, err := rt.engine.DrainInstance(ctx, &dagv1.EntityRef{EntityId: entityID}, opts...)
+	rt.rec.Record("drain", entityID, err == nil, err)
+	return inst, err
+}
+
 // Engine 返回底层引擎。
 func (rt *Runtime) Engine() *memory.Engine { return rt.engine }
 

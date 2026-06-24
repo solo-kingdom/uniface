@@ -21,6 +21,7 @@ var (
 	ErrInstanceCancelled      = errors.New("instance cancelled")
 	ErrExecutionAlreadyExists = errors.New("execution already committed")
 	ErrStoreClosed            = errors.New("store closed")
+	ErrDrainExceeded          = errors.New("drain hop limit exceeded")
 )
 
 // DAGError 带上下文的 DAG 错误。

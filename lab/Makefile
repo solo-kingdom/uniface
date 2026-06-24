@@ -6,7 +6,7 @@ empty :=
 space := $(empty) $(empty)
 
 # 域注册表：module -> binary, compose profiles（空表示无外部中间件）
-MODULES := kv config lb queue dag ui
+MODULES := kv config lb queue dag ui daghttp
 
 MODULE_kv_BIN := lab-kv
 MODULE_kv_PROFILES := kv
@@ -27,6 +27,10 @@ MODULE_queue_PORT := 8084
 MODULE_dag_BIN := lab-dag
 MODULE_dag_PROFILES :=
 MODULE_dag_PORT := 8085
+
+MODULE_daghttp_BIN := lab-dag-http
+MODULE_daghttp_PROFILES :=
+MODULE_daghttp_PORT := 8086
 
 MODULE_ui_BIN := lab-ui
 MODULE_ui_PROFILES :=
@@ -57,11 +61,10 @@ endef
 
 define start-module-cmd
 echo ">>> starting $(MODULE_$(1)_BIN) (log: $(BIN_DIR)/$(MODULE_$(1)_BIN).log)"; \
-mkdir -p $(BIN_DIR)/pids; \
 if [ "$(1)" = "ui" ]; then \
-	LAB_CONFIG=configs/default.yaml nohup ./$(BIN_DIR)/$(MODULE_$(1)_BIN) > $(BIN_DIR)/$(MODULE_$(1)_BIN).log 2>&1 & echo $$$$! > $(BIN_DIR)/pids/$(MODULE_$(1)_BIN).pid; \
+	LAB_CONFIG=configs/default.yaml ./scripts/launch.sh $(BIN_DIR)/pids/$(MODULE_$(1)_BIN).pid $(BIN_DIR)/$(MODULE_$(1)_BIN).log ./$(BIN_DIR)/$(MODULE_$(1)_BIN); \
 else \
-	LAB_CONFIG=configs/default.yaml nohup ./$(BIN_DIR)/$(MODULE_$(1)_BIN) serve > $(BIN_DIR)/$(MODULE_$(1)_BIN).log 2>&1 & echo $$$$! > $(BIN_DIR)/pids/$(MODULE_$(1)_BIN).pid; \
+	LAB_CONFIG=configs/default.yaml ./scripts/launch.sh $(BIN_DIR)/pids/$(MODULE_$(1)_BIN).pid $(BIN_DIR)/$(MODULE_$(1)_BIN).log ./$(BIN_DIR)/$(MODULE_$(1)_BIN) serve; \
 fi;
 endef
 

@@ -1,6 +1,6 @@
 # Uniface Lab
 
-uniface 能力验证台——独立 lab 子模块，通过 CLI 与 Web Dashboard 验证 KV、Config、Load Balancer、Queue、DAG 五类能力。
+uniface 能力验证台——独立 lab 子模块，通过 CLI 与 Web Dashboard 验证 KV、Config、Load Balancer、Queue、DAG 五类能力，并以 `lab-dag-http` 演示「HTTP 请求经统一 RPC Server 抽象编排」。
 
 ## 快速开始
 
@@ -23,8 +23,14 @@ make lab-up-dag
 curl http://localhost:8085/api/status   # 或 CLI: lab/bin/lab-dag graph load --graph echo
 make lab-down-dag
 
+# 仅 DAG HTTP 服务（POST /echo 经 DAG 排空返回 echo:<body>）
+make lab-up-dag-http
+curl -X POST http://localhost:8086/echo -d 'hello'   # → echo:hello
+make lab-down-dag-http
+
 # 多域组合
 make lab-up LAB_MODULES=kv,dag
+make lab-up LAB_MODULES=dag,daghttp   # 同时启 lab-dag 与 lab-dag-http，不启 compose
 make lab-down LAB_MODULES=dag       # 仅停 dag，不影响 kv
 ```
 
@@ -53,6 +59,7 @@ make lab-down LAB_MODULES=dag       # 仅停 dag，不影响 kv
 | `lab-lb` | 8083 | `add`, `remove`, `select`, `simulate`, `switch`, `serve` |
 | `lab-queue` | 8084 | `publish`, `subscribe`, `bench`, `serve` |
 | `lab-dag` | 8085 | `graph load`, `start`, `status`, `signal`, `journal`, `run-once`, `serve` |
+| `lab-dag-http` | 8086 | `serve`（`-addr` 覆盖地址） |
 | `lab-ui` | 3000 | Dashboard 聚合 |
 
 示例：
@@ -100,6 +107,23 @@ nodes:
 
 **Balancer 集成**：`http.service` 通过 `pkg/dag/units/balanceradapter` 包装 `Balancer[http.Client]` 解析实例（注入 `dag.WithHTTPResolver`）。lab wiring 默认注入 nil resolver（仅支持 `url` 直连）；业务进程可注入真实 Balancer 启用 `service` 路由。
 
+### DAG HTTP 服务（lab-dag-http）
+
+`lab-dag-http` 演示「HTTP 请求经统一 RPC Server 抽象编排」：通过 `pkg/rpc/server`
+的 `NewHTTPServer` 启动（非直接手写 `net/http`），对外暴露 `POST /echo`。每次请求包装为
+一个 `EntityInstance`，经 echo 图（`lab.echo` compute → terminal）排空到终态后，终态
+payload 作为响应体返回：
+
+```bash
+make lab-up-dag-http
+curl -X POST http://localhost:8086/echo -d 'hello'   # → echo:hello (200)
+curl http://localhost:8086/api/status                 # 域状态
+make lab-down-dag-http
+```
+
+终态映射：`COMPLETED` → 200；`FAILED`/`COMPENSATED` → 500 并附失败原因。它复用
+`lab/internal/dag.Runtime`、`echo` fixture 与 `lab.echo` unit，不修改 `lab-dag` 引擎验证台。
+
 ## Docker Compose Profiles
 
 ```bash
@@ -117,13 +141,14 @@ docker compose --profile all up -d
 
 ```
 lab/
-├── cmd/           # 六个 CLI 入口
+├── cmd/           # 七个 CLI 入口（含 lab-dag-http）
 ├── internal/
 │   ├── wiring/    # 工厂层（yaml + 环境变量）
 │   ├── web/       # 共享 HTTP + htmx UI
-│   ├── kv/ config/ lb/ queue/ dag/
+│   ├── kv/ config/ lb/ queue/ dag/ daghttp/
 │   ├── conformance/
 │   └── fixtures/graphs/
+├── scripts/       # 运维脚本（launch.sh：后台启动 + 记录 PID）
 └── configs/default.yaml
 ```
 

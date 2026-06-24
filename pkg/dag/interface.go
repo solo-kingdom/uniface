@@ -70,6 +70,8 @@ type Engine interface {
 	CancelInstance(ctx context.Context, ref *dagv1.EntityRef) error
 	DeliverSignal(ctx context.Context, delivery *dagv1.SignalDelivery) error
 	RunOnce(ctx context.Context) error
+	// DrainInstance 循环 RunOnce 直至实例终态、WAITING、ctx 取消或 hop 上限耗尽。
+	DrainInstance(ctx context.Context, ref *dagv1.EntityRef, opts ...Option) (*dagv1.EntityInstance, error)
 	Close() error
 }
 
