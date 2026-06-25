@@ -3,7 +3,7 @@
 //
 // 本包与 lab/internal/dag 完全隔离：自带 Runtime、units 与 fixtures；
 // 通过统一 rpc.Server 抽象暴露，验证「同一 handler 可在不同传输间切换」。
-// Runtime 内部基于公共 pkg/dag/invocation 抽象装配。
+// Runtime 内部基于公共 pkg/dag/invocation/app 轻量封装装配。
 package daghttp
 
 import (
@@ -14,9 +14,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	dagv1 "github.com/solo-kingdom/uniface/api/dag/v1"
 	"github.com/solo-kingdom/uniface/lab/internal/web/api"
-	"github.com/solo-kingdom/uniface/pkg/dag/invocation"
 	rpcserver "github.com/solo-kingdom/uniface/pkg/rpc/server"
 )
 
@@ -56,9 +54,8 @@ func (s *Service) Register(srv rpcserver.Server) error {
 
 // Echo 是 POST /echo 处理器：
 //  1. 读 Request.Body 作为 payload；
-//  2. 生成唯一 entityID，经公共 Invoker 一次性 Start+Drain+Snapshot；
-//  3. 终态 payload（StringValue）作为响应体，经公共 Codec 解码；
-//     COMPLETED → 200，否则 → 500 并附失败原因。
+//  2. 生成唯一 entityID，经 app.InvokeString 一次性 Start+Drain+Snapshot；
+//  3. 终态 payload 作为响应体；COMPLETED → 200，否则 → 500 并附失败原因。
 func (s *Service) Echo(ctx context.Context, req *rpcserver.Request) (*rpcserver.Response, error) {
 	payload := string(req.Body)
 	entityID := s.nextEntityID()
@@ -72,9 +69,9 @@ func (s *Service) Echo(ctx context.Context, req *rpcserver.Request) (*rpcserver.
 		}, nil
 	}
 
-	body := s.snapshotPayload(res)
+	body := res.Value
 	status := res.Instance.Status
-	completed := status == dagv1.InstanceStatus_INSTANCE_STATUS_COMPLETED
+	completed := res.IsCompleted()
 	s.rec.Record("echo", entityID, completed, nil)
 
 	if completed {
@@ -116,13 +113,4 @@ func (s *Service) StatusInfo() api.Status {
 func (s *Service) nextEntityID() string {
 	n := s.idCounter.Add(1)
 	return fmt.Sprintf("http-%d-%d", time.Now().UnixNano(), n)
-}
-
-// snapshotPayload 经公共 Codec 解码终态 payload（StringValue），失败回退为原始字节。
-func (s *Service) snapshotPayload(res *invocation.InvokeResult) string {
-	sv, err := invocation.UnmarshalString(res.Snapshot)
-	if err != nil {
-		return ""
-	}
-	return sv
 }

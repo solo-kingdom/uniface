@@ -2,6 +2,8 @@ package daghttp
 
 import (
 	"context"
+	"go/parser"
+	"go/token"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -133,6 +135,26 @@ func TestStatus(t *testing.T) {
 	}
 	if !strings.Contains(string(resp.Body), "daghttp") {
 		t.Fatalf("body = %q, want to contain daghttp", resp.Body)
+	}
+}
+
+// TestHandler_UsesAppFacade 确认 handler 源码不直接构造 InvokeRequest 或手写 anypb 编解码。
+func TestHandler_UsesAppFacade(t *testing.T) {
+	t.Helper()
+	src, err := os.ReadFile("handler.go")
+	if err != nil {
+		t.Fatal(err)
+	}
+	body := string(src)
+	if strings.Contains(body, "InvokeRequest") {
+		t.Fatal("handler.go 不应直接构造 invocation.InvokeRequest")
+	}
+	if strings.Contains(body, "anypb.") || strings.Contains(body, "MarshalString") || strings.Contains(body, "UnmarshalString") {
+		t.Fatal("handler.go 不应手写 anypb/StringValue 编解码")
+	}
+	fset := token.NewFileSet()
+	if _, err := parser.ParseFile(fset, "handler.go", body, parser.AllErrors); err != nil {
+		t.Fatalf("parse handler.go: %v", err)
 	}
 }
 
