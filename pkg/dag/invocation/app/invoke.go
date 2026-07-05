@@ -70,6 +70,15 @@ type StringCallResult struct {
 	Value string
 }
 
+// Err 转发到底层 CallResult.TerminalErr()；COMPLETED / WAITING 等非失败状态返回 nil。
+// 提供为 ResultSentinelWithErr 接口（lab/internal/web/api 定义）的可选方法。
+func (r *StringCallResult) Err() error {
+	if r == nil {
+		return errors.New("app: nil StringCallResult")
+	}
+	return r.CallResult.TerminalErr()
+}
+
 // InvokeString 发起 string payload 请求式调用，复用底层 Invoker 与 StringValue codec。
 //
 // Drain 错误透传；FAILED/COMPENSATED/CANCELLED 终态不填充 Value；WAITING 显式暴露且不继续等待。

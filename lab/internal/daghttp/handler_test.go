@@ -10,25 +10,50 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/solo-kingdom/uniface/pkg/dag/invocation/app"
 	rpcserver "github.com/solo-kingdom/uniface/pkg/rpc/server"
 )
 
-// setupService 构造一个加载了 echo fixture 的 Runtime 与 Service。
-func setupService(t *testing.T, graphID string) (*Runtime, *Service) {
+// registerLabUnits 是测试复制的单元注册器（与 wiring/daghttp.go 保持一致）：
+// 测试需要构造最小 StringApp 而不依赖 wiring 包。
+func registerLabUnits(sa *app.StringApp) error {
+	if err := sa.RegisterUnit("lab.hello", func(_ context.Context, in string) (string, error) {
+		return "hello, " + in, nil
+	}); err != nil {
+		return err
+	}
+	if err := sa.RegisterUnit("lab.echo", func(_ context.Context, in string) (string, error) {
+		return "echo:" + in, nil
+	}); err != nil {
+		return err
+	}
+	return nil
+}
+
+// setupService 构造一个加载了 echo fixture 的 StringApp 与 Service。
+func setupService(t *testing.T, graphID string) (*app.StringApp, *Service) {
 	t.Helper()
-	rt, err := NewRuntime(filepath.Join("fixtures", "graphs"))
+	sa, err := app.NewStringApp(
+		app.WithGraphDir(filepath.Join("fixtures", "graphs")),
+		app.WithLoaderDefaults("lab.Generic", "v1"),
+	)
 	if err != nil {
-		t.Fatalf("NewRuntime: %v", err)
+		t.Fatalf("NewStringApp: %v", err)
 	}
-	if _, err := rt.LoadFixture("echo"); err != nil {
-		t.Fatalf("LoadFixture(echo): %v", err)
+	if err := registerLabUnits(sa); err != nil {
+		_ = sa.Close()
+		t.Fatalf("registerLabUnits: %v", err)
 	}
-	return rt, NewService(rt, graphID)
+	if _, err := sa.LoadGraphID("echo"); err != nil {
+		_ = sa.Close()
+		t.Fatalf("LoadGraphID(echo): %v", err)
+	}
+	return sa, NewService(sa, graphID)
 }
 
 // setupFailingService 在临时目录构造一个入口即 failure terminal 的图，
 // 用于确定性验证失败终态 → 5xx。
-func setupFailingService(t *testing.T) (*Runtime, *Service) {
+func setupFailingService(t *testing.T) (*app.StringApp, *Service) {
 	t.Helper()
 	dir := t.TempDir()
 	// 入口节点为 failure terminal：实例一启动即 FAILED。
@@ -45,20 +70,28 @@ nodes:
 `), 0o644); err != nil {
 		t.Fatalf("write failterm.yaml: %v", err)
 	}
-	rt, err := NewRuntime(dir)
+	sa, err := app.NewStringApp(
+		app.WithGraphDir(dir),
+		app.WithLoaderDefaults("lab.Generic", "v1"),
+	)
 	if err != nil {
-		t.Fatalf("NewRuntime: %v", err)
+		t.Fatalf("NewStringApp: %v", err)
 	}
-	if _, err := rt.LoadFixture("failterm"); err != nil {
-		t.Fatalf("LoadFixture(failterm): %v", err)
+	if err := registerLabUnits(sa); err != nil {
+		_ = sa.Close()
+		t.Fatalf("registerLabUnits: %v", err)
 	}
-	return rt, NewService(rt, "failterm")
+	if _, err := sa.LoadGraphID("failterm"); err != nil {
+		_ = sa.Close()
+		t.Fatalf("LoadGraphID(failterm): %v", err)
+	}
+	return sa, NewService(sa, "failterm")
 }
 
 // TestEcho_GoldenPath 验证 hello → echo 两节点黄金路径。
 func TestEcho_GoldenPath(t *testing.T) {
-	rt, svc := setupService(t, "echo")
-	defer rt.Close()
+	sa, svc := setupService(t, "echo")
+	defer sa.Close()
 
 	resp, err := svc.Echo(context.Background(), &rpcserver.Request{
 		Method: http.MethodPost,
@@ -78,8 +111,8 @@ func TestEcho_GoldenPath(t *testing.T) {
 
 // TestEcho_EmptyBody 验证空请求体也能完成（hello 节点仍加前缀）。
 func TestEcho_EmptyBody(t *testing.T) {
-	rt, svc := setupService(t, "echo")
-	defer rt.Close()
+	sa, svc := setupService(t, "echo")
+	defer sa.Close()
 
 	resp, err := svc.Echo(context.Background(), &rpcserver.Request{
 		Method: http.MethodPost,
@@ -99,8 +132,8 @@ func TestEcho_EmptyBody(t *testing.T) {
 
 // TestEcho_FailureMaps5xx 验证失败终态（FAILED）映射为 500 并附原因。
 func TestEcho_FailureMaps5xx(t *testing.T) {
-	rt, svc := setupFailingService(t)
-	defer rt.Close()
+	sa, svc := setupFailingService(t)
+	defer sa.Close()
 
 	resp, err := svc.Echo(context.Background(), &rpcserver.Request{
 		Method: http.MethodPost,
@@ -120,8 +153,8 @@ func TestEcho_FailureMaps5xx(t *testing.T) {
 
 // TestStatus 验证 /api/status 返回 JSON 且包含域名。
 func TestStatus(t *testing.T) {
-	rt, svc := setupService(t, "echo")
-	defer rt.Close()
+	sa, svc := setupService(t, "echo")
+	defer sa.Close()
 
 	resp, err := svc.Status(context.Background(), &rpcserver.Request{})
 	if err != nil {
@@ -138,7 +171,8 @@ func TestStatus(t *testing.T) {
 	}
 }
 
-// TestHandler_UsesAppFacade 确认 handler 源码不直接构造 InvokeRequest 或手写 anypb 编解码。
+// TestHandler_UsesAppFacade 确认 handler 源码不直接构造 InvokeRequest 或手写 anypb 编解码，
+// 也不自维护 entityID 计数器（已下沉到 app.EntityIDGen）。
 func TestHandler_UsesAppFacade(t *testing.T) {
 	t.Helper()
 	src, err := os.ReadFile("handler.go")
@@ -152,6 +186,9 @@ func TestHandler_UsesAppFacade(t *testing.T) {
 	if strings.Contains(body, "anypb.") || strings.Contains(body, "MarshalString") || strings.Contains(body, "UnmarshalString") {
 		t.Fatal("handler.go 不应手写 anypb/StringValue 编解码")
 	}
+	if strings.Contains(body, "atomic.Uint64") {
+		t.Fatal("handler.go 不应自维护 entityID 计数器（应使用 app.EntityIDGen）")
+	}
 	fset := token.NewFileSet()
 	if _, err := parser.ParseFile(fset, "handler.go", body, parser.AllErrors); err != nil {
 		t.Fatalf("parse handler.go: %v", err)
@@ -160,8 +197,8 @@ func TestHandler_UsesAppFacade(t *testing.T) {
 
 // TestRegister 验证路由注册（重复注册 /echo 报错间接确认）。
 func TestRegister(t *testing.T) {
-	rt, svc := setupService(t, "echo")
-	defer rt.Close()
+	sa, svc := setupService(t, "echo")
+	defer sa.Close()
 
 	srv := rpcserver.New()
 	if err := svc.Register(srv); err != nil {

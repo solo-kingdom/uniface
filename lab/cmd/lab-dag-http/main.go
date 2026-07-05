@@ -46,7 +46,7 @@ func serve() {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
-	defer rt.Close()
+	defer rt.Close() // *app.StringApp.Close()
 
 	// 经统一 rpc.Server 抽象启动（不直接手写 net/http 样板）。
 	srv := rpchttp.NewHTTPServer(*addr)

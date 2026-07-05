@@ -20,6 +20,12 @@ type Runtime struct {
 	loadOpts loader.Options
 	mu       sync.RWMutex
 	loaded   map[string]string
+
+	// stringEntityType / stringSchemaVersion 由 StringApp 专用 Option 设置。
+	// 普通 *Runtime 不消费这两个字段；StringApp 在 NewStringApp 中读取后用于
+	// RegisterStringEntityType。空值表示使用 StringApp 自己的默认值。
+	stringEntityType    string
+	stringSchemaVersion string
 }
 
 // Option 修改 Runtime 配置。

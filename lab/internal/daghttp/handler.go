@@ -1,39 +1,43 @@
 // Package daghttp 把 HTTP 请求经 DAG echo 图排空到终态后返回，演示
 // 「请求 = 实例、排空到终态、终态 payload 作为响应」的请求编排范式。
 //
-// 本包与 lab/internal/dag 完全隔离：自带 Runtime、units 与 fixtures；
+// 本包与 lab/internal/dag 完全隔离：自带 StringApp、units 与 fixtures；
 // 通过统一 rpc.Server 抽象暴露，验证「同一 handler 可在不同传输间切换」。
-// Runtime 内部基于公共 pkg/dag/invocation/app 轻量封装装配。
+// StringApp 内部基于公共 pkg/dag/invocation/app 轻量封装装配。
 package daghttp
 
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"net/http"
-	"sync/atomic"
 	"time"
 
 	"github.com/solo-kingdom/uniface/lab/internal/web/api"
+	"github.com/solo-kingdom/uniface/pkg/dag/invocation/app"
 	rpcserver "github.com/solo-kingdom/uniface/pkg/rpc/server"
+	"github.com/solo-kingdom/uniface/pkg/rpc/server/dagbridge"
 )
 
 const (
+	// DefaultFixturesDir 是 daghttp 域 fixture 的默认相对路径（相对 cwd）。
+	// wiring/daghttp.go 不再硬编码该路径；调用方如未显式提供 cfg.FixturesDir
+	// 可使用本常量（或由配置文件注入）。
+	DefaultFixturesDir = "internal/daghttp/fixtures/graphs"
+
 	// defaultGraphID 是 echo DAG 的默认图 ID。
 	defaultGraphID = "echo"
 )
 
 // Service 把 HTTP 请求经 DAG 排空到终态，并暴露 /api/status。
 type Service struct {
-	rt      *Runtime
+	rt      *app.StringApp
 	graphID string
 	rec     *api.OpRecorder
-
-	idCounter atomic.Uint64
+	idGen   *app.EntityIDGen
 }
 
 // NewService 创建 daghttp 服务。graphID 为空时使用 "echo"。
-func NewService(rt *Runtime, graphID string) *Service {
+func NewService(rt *app.StringApp, graphID string) *Service {
 	if graphID == "" {
 		graphID = defaultGraphID
 	}
@@ -41,6 +45,7 @@ func NewService(rt *Runtime, graphID string) *Service {
 		rt:      rt,
 		graphID: graphID,
 		rec:     api.NewOpRecorder(50),
+		idGen:   rt.NewEntityIDGen("http"),
 	}
 }
 
@@ -54,13 +59,13 @@ func (s *Service) Register(srv rpcserver.Server) error {
 
 // Echo 是 POST /echo 处理器：
 //  1. 读 Request.Body 作为 payload；
-//  2. 生成唯一 entityID，经 app.InvokeString 一次性 Start+Drain+Snapshot；
-//  3. 终态 payload 作为响应体；COMPLETED → 200，否则 → 500 并附失败原因。
+//  2. 生成唯一 entityID，经 StringApp.InvokeString 一次性 Start+Drain+Snapshot；
+//  3. 终态 payload 作为响应体；终态映射由 dagbridge.ResponseForTerminalResult 统一翻译。
 func (s *Service) Echo(ctx context.Context, req *rpcserver.Request) (*rpcserver.Response, error) {
 	payload := string(req.Body)
-	entityID := s.nextEntityID()
+	entityID := s.idGen.Next()
 
-	res, err := s.rt.Invoke(ctx, s.graphID, entityID, payload)
+	res, err := s.rt.InvokeString(ctx, s.graphID, entityID, payload)
 	if err != nil {
 		s.rec.Record("echo", entityID, false, err)
 		return &rpcserver.Response{
@@ -69,19 +74,8 @@ func (s *Service) Echo(ctx context.Context, req *rpcserver.Request) (*rpcserver.
 		}, nil
 	}
 
-	body := res.Value
-	status := res.Instance.Status
-	completed := res.IsCompleted()
-	s.rec.Record("echo", entityID, completed, nil)
-
-	if completed {
-		return &rpcserver.Response{StatusCode: http.StatusOK, Body: []byte(body)}, nil
-	}
-	reason := fmt.Sprintf("dag terminal status %s: %s", status, body)
-	return &rpcserver.Response{
-		StatusCode: http.StatusInternalServerError,
-		Body:       []byte(reason),
-	}, nil
+	s.rec.RecordResult("echo", entityID, res)
+	return dagbridge.ResponseForTerminalResult(res), nil
 }
 
 // Status 是 GET /api/status 处理器，返回域状态 JSON。
@@ -107,10 +101,4 @@ func (s *Service) StatusInfo() api.Status {
 		},
 		CollectedAt: time.Now(),
 	}
-}
-
-// nextEntityID 生成全局唯一 entityID（http-<unixnano>-<counter>）。
-func (s *Service) nextEntityID() string {
-	n := s.idCounter.Add(1)
-	return fmt.Sprintf("http-%d-%d", time.Now().UnixNano(), n)
 }

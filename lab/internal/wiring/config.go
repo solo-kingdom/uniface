@@ -42,6 +42,10 @@ type QueueConfig struct {
 	Password string   `yaml:"password"`
 }
 
+// DAGConfig 是 daghttp 域的运行时配置。
+//
+// 注意：FixturesDir 必填 —— 调用方需显式声明 fixture 目录，
+// 缺省时 NewDAGHTTP 返回 error。常见值见 lab/internal/daghttp.DefaultFixturesDir。
 type DAGConfig struct {
 	Store       string `yaml:"store"`
 	FixturesDir string `yaml:"fixtures_dir"`
