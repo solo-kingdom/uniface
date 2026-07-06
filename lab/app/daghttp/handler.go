@@ -4,6 +4,8 @@
 // 本包与 lab/internal/dag 完全隔离：自带 StringApp、units 与 fixtures；
 // 通过统一 rpc.Server 抽象暴露，验证「同一 handler 可在不同传输间切换」。
 // StringApp 内部基于公共 pkg/dag/invocation/app 轻量封装装配。
+//
+// 默认常量与 Config schema 见同包 config.go。
 package daghttp
 
 import (
@@ -16,16 +18,6 @@ import (
 	"github.com/solo-kingdom/uniface/pkg/dag/invocation/app"
 	rpcserver "github.com/solo-kingdom/uniface/pkg/rpc/server"
 	"github.com/solo-kingdom/uniface/pkg/rpc/server/dagbridge"
-)
-
-const (
-	// DefaultFixturesDir 是 daghttp 域 fixture 的默认相对路径（相对 cwd）。
-	// wiring/daghttp.go 不再硬编码该路径；调用方如未显式提供 cfg.FixturesDir
-	// 可使用本常量（或由配置文件注入）。
-	DefaultFixturesDir = "internal/daghttp/fixtures/graphs"
-
-	// defaultGraphID 是 echo DAG 的默认图 ID。
-	defaultGraphID = "echo"
 )
 
 // Service 把 HTTP 请求经 DAG 排空到终态，并暴露 /api/status。

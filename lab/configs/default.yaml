@@ -19,9 +19,12 @@ queue:
   username: guest
   password: guest
 
+# lab-dag 与 lab-dag-http 各自拥有独立的 fixture 目录：
+#   - lab-dag 使用 lab/internal/fixtures/graphs（多种通用图）；
+#   - lab-dag-http 使用 lab/app/daghttp/fixtures/graphs（自包含 echo 图）。
+# 双方均通过 LAB_DAG_FIXTURES_DIR 覆盖；yaml 不再共享 fixtures_dir 字段。
 dag:
   store: memory
-  fixtures_dir: internal/fixtures/graphs
 
 services:
   kv: http://localhost:8081

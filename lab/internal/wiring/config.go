@@ -6,15 +6,20 @@ import (
 	"path/filepath"
 
 	"gopkg.in/yaml.v3"
+
+	"github.com/solo-kingdom/uniface/lab/app/daghttp"
 )
 
 // LabConfig 定义 lab 各域默认配置。
+//
+// DAG 字段类型由 lab/app/daghttp 自治（daghttp.Config）；LabConfig 仅作
+// 「跨域共享配置聚合」引用，不重复定义 DAG schema。
 type LabConfig struct {
-	KV      KVConfig      `yaml:"kv"`
-	Config  ConfigDomain  `yaml:"config"`
-	LB      LBConfig      `yaml:"lb"`
-	Queue   QueueConfig   `yaml:"queue"`
-	DAG     DAGConfig     `yaml:"dag"`
+	KV       KVConfig       `yaml:"kv"`
+	Config   ConfigDomain   `yaml:"config"`
+	LB       LBConfig       `yaml:"lb"`
+	Queue    QueueConfig    `yaml:"queue"`
+	DAG      daghttp.Config `yaml:"dag"`
 	Services ServicesConfig `yaml:"services"`
 }
 
@@ -40,15 +45,6 @@ type QueueConfig struct {
 	Brokers  []string `yaml:"brokers"`
 	Username string   `yaml:"username"`
 	Password string   `yaml:"password"`
-}
-
-// DAGConfig 是 daghttp 域的运行时配置。
-//
-// 注意：FixturesDir 必填 —— 调用方需显式声明 fixture 目录，
-// 缺省时 NewDAGHTTP 返回 error。常见值见 lab/internal/daghttp.DefaultFixturesDir。
-type DAGConfig struct {
-	Store       string `yaml:"store"`
-	FixturesDir string `yaml:"fixtures_dir"`
 }
 
 type ServicesConfig struct {

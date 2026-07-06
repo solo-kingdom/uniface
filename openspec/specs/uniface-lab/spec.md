@@ -171,6 +171,8 @@ TBD - created by archiving change add-uniface-lab. Update Purpose after archive.
 
 系统 SHALL 提供独立 lab 模块 `lab-dag-http`（`lab/cmd/lab-dag-http`），对外仅暴露 `POST /echo` 端点，并通过统一 `pkg/rpc/server` 抽象启动（SHALL NOT 直接手写 `net/http` 样板）。每次 `/echo` 请求 SHALL 包装为一个独立 `EntityInstance`，经 `lab-dag-http` 自有 echo 图排空到终态后，将终态 payload 作为响应体返回；`COMPLETED` 映射 HTTP 200，`FAILED`/`COMPENSATED` 映射 HTTP 500 并附失败原因。
 
+`daghttp` SHALL 作为自包含应用整体落在 `lab/app/daghttp/` 目录下：handler/service、`StringApp` 装配函数、`lab.hello` / `lab.echo` 计算单元、echo fixture、`Config` schema（`Store` / `FixturesDir`）、生命周期入口（`Serve` / `LoadConfig`）均位于该路径下，不得散布到 `lab/internal/wiring/` 或其他跨域共享目录。`lab-dag-http` SHALL 通过 `lab/app/daghttp.Serve(ctx, addr, cfg)` 启动服务，main 包不再持有 StringApp 与装配细节。
+
 `lab-dag-http` SHALL 与 `lab/internal/dag` 验证台完全隔离：不得复用 `lab/internal/dag.Runtime`、`lab/internal/dag` fixtures 或其 HTTP API。`lab-dag-http` SHALL 优先复用根模块公共 `pkg/dag/invocation` 请求式轻量封装装配其验证所需的 graph、entity type 与 compute units；当需要验证底层能力时 MAY 继续直接使用公共 Runtime/Invoker/Loader/Codec 抽象。
 
 #### Scenario: echo 请求经 DAG 返回
@@ -201,9 +203,22 @@ TBD - created by archiving change add-uniface-lab. Update Purpose after archive.
 - **THEN** 装配代码 SHALL 通过公共请求式 DAG 轻量封装完成常见注册、图加载和 string payload 调用
 - **AND** 业务 handler 不需要直接构造 `invocation.InvokeRequest` 或手写 `anypb.Any` payload 编解码
 
+#### Scenario: daghttp 实现全部落在 `lab/app/daghttp/`
+
+- **WHEN** 查看 daghttp 应用的所有源代码（除 `lab/cmd/lab-dag-http/main.go` 外）
+- **THEN** 所有 `.go` 文件与 fixture 均位于 `lab/app/daghttp/` 之下
+- **AND** `lab/internal/wiring/` 中不再保留 daghttp 专属函数（`NewDAGHTTP` / `registerLabUnits` / `helloFunc` / `echoFunc`）
+- **AND** `LabConfig.DAG` 字段类型为 `daghttp.Config`，DAGConfig 不再定义于 wiring 包
+
+#### Scenario: main 仅持有 flag 与生命周期入口
+
+- **WHEN** 阅读 `lab/cmd/lab-dag-http/main.go`
+- **THEN** 文件 SHALL 仅包含 flag 解析、信号 `ctx`、`daghttp.LoadConfig()` 调用、`daghttp.Serve(ctx, addr, cfg)` 调用
+- **AND** SHALL NOT 直接持有 `*app.StringApp`、`registerLabUnits`、`helloFunc`、`echoFunc`、`daghttp.NewService` 中的任意一个
+
 ### Requirement: DAG HTTP 按域生命周期
 
-系统 SHALL 将 `daghttp` 纳入 lab 域注册表（二进制 `lab-dag-http`，默认端口 `8086`，无 compose 中间件依赖），并提供按域目标 `lab-build-dag-http`、`lab-up-dag-http`、`lab-down-dag-http`，行为与既有域目标一致。
+系统 SHALL 将 `daghttp` 纳入 lab 域注册表（二进制 `lab-dag-http`，默认端口 `8086`，无 compose 中间件依赖），并提供按域目标 `lab-build-dag-http`、`lab-up-dag-http`、`lab-down-dag-http`，行为与既有域目标一致。daghttp 域的可执行构建路径 SHALL 为 `lab/cmd/lab-dag-http`，其源码归属 SHALL 为 `lab/app/daghttp/`。
 
 #### Scenario: 按域启动 DAG HTTP
 
@@ -219,4 +234,54 @@ TBD - created by archiving change add-uniface-lab. Update Purpose after archive.
 
 - **WHEN** 执行 `make lab-up LAB_MODULES=dag,daghttp`
 - **THEN** 同时启动 `lab-dag` 与 `lab-dag-http` 两个进程，且不启动额外 compose 服务
+
+### Requirement: lab/app/ 顶级目录承载自包含应用
+
+系统 SHALL 在 `lab/` 下提供 `lab/app/` 顶级目录，用于承载「自包含 lab 应用」—— 即「handler / 装配 / unit / fixture / 配置 schema / 生命周期入口」均落在该应用目录之内的端到端可部署单元。`lab/app/` SHALL NOT 包含跨应用共享的基础设施（后者仍居于 `lab/internal/`）。本变更仅要求 `lab/app/daghttp/` 一个应用落地；其它 lab CLI（lab-kv、lab-config、lab-lb、lab-queue、lab-dag、lab-ui）在本变更中 SHALL 维持现有位置不动。
+
+#### Scenario: lab/app/ 仅承载 self-contained 应用
+
+- **WHEN** 列出 `lab/app/` 下任一应用目录
+- **THEN** 该目录下的源码 SHALL 仅引用 `pkg/` 公共包与同包内部符号
+- **AND** SHALL NOT 引用 `lab/internal/wiring` 中专门为该应用新增的专属函数
+
+#### Scenario: lab/internal/wiring 不再持有 daghttp 专属装配
+
+- **WHEN** 阅读 `lab/internal/wiring/daghttp.go`
+- **THEN** 该文件 SHALL 不存在（daghttp 专属代码已迁出）
+- **AND** `lab/internal/wiring/config.go` SHALL 仅保留跨域共享的 `LabConfig` / `KVConfig` / `LBConfig` / `QueueConfig` / `ServicesConfig`，`DAGConfig` 由 `lab/app/daghttp` 自有
+
+### Requirement: OpRecorder 类型化结果记录
+
+`lab/internal/web/api` 的 `OpRecorder` SHALL 暴露 `RecordResult(op, detail string, res ResultSentinel)` 方法 —— 接受一个类型化结果（`*app.StringCallResult` 隐式实现 `ResultSentinel`）并自动派生 `Operation.OK` 字段：
+
+- `res == nil` → `OK = false`，`Error = "nil result"`
+- `res.IsCompleted() == true` → `OK = true`，`Error = ""`
+- `res.IsCompleted() == false` → `OK = false`，`Error` 优先取 `res.Err().Error()`，否则取 `"status=<res.Status()>"`
+- `Detail` 透传调用方提供的字符串
+
+`ResultSentinel` 接口 SHALL 至少包含 `IsCompleted() bool` 与 `Status() string` 两个方法；`Err() error` 为可选方法（缺省时 recorder 回退到 `status=<Status>` 形式）。
+
+调用方 SHALL 不再需要 `isCompleted := res.IsCompleted(); rec.Record(op, detail, isCompleted, nil)` 的手工派生代码；改写为 `rec.RecordResult(op, detail, res)`。
+
+#### Scenario: COMPLETED 自动派生 ok=true
+
+- **WHEN** 调用 `rec.RecordResult("echo", "e1", res)` 其中 `res.IsCompleted() == true`
+- **THEN** 内部 `Operation` 的 `OK = true`，`Error` 为空
+
+#### Scenario: FAILED 自动派生 ok=false 与错误信息
+
+- **WHEN** 调用 `rec.RecordResult("echo", "e1", res)` 其中 `res.IsCompleted() == false`、`res.Err() != nil` 且错误信息为 `"unit failed"`
+- **THEN** 内部 `Operation` 的 `OK = false`，`Error = "unit failed"`
+
+#### Scenario: nil 入参
+
+- **WHEN** 调用 `rec.RecordResult("echo", "e1", nil)`
+- **THEN** 内部 `Operation` 的 `OK = false`，`Error` 含 `"nil result"`
+- **AND** 不 panic
+
+#### Scenario: 接口向后兼容
+
+- **WHEN** 现有调用方继续使用 `rec.Record(op, detail, ok, err)`
+- **THEN** 行为与本次变更前一致
 

@@ -8,8 +8,7 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/solo-kingdom/uniface/lab/internal/wiring"
-	rpchttp "github.com/solo-kingdom/uniface/pkg/rpc/server/http"
+	"github.com/solo-kingdom/uniface/lab/app/daghttp"
 )
 
 const defaultAddr = ":8086"
@@ -36,30 +35,16 @@ func serve() {
 	addr := fs.String("addr", defaultAddr, "listen address")
 	_ = fs.Parse(os.Args[2:])
 
-	cfg, err := wiring.LoadConfig()
+	cfg, err := daghttp.LoadConfig()
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
-		os.Exit(1)
-	}
-	rt, svc, err := wiring.NewDAGHTTP(cfg.DAG, "echo")
-	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		os.Exit(1)
-	}
-	defer rt.Close() // *app.StringApp.Close()
-
-	// 经统一 rpc.Server 抽象启动（不直接手写 net/http 样板）。
-	srv := rpchttp.NewHTTPServer(*addr)
-	if err := svc.Register(srv); err != nil {
-		fmt.Fprintf(os.Stderr, "register routes: %v\n", err)
 		os.Exit(1)
 	}
 
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
 
-	fmt.Printf("lab-dag-http listening on %s (POST /echo)\n", *addr)
-	if err := srv.Start(ctx); err != nil {
+	if err := daghttp.Serve(ctx, *addr, cfg); err != nil {
 		fmt.Fprintf(os.Stderr, "serve: %v\n", err)
 		os.Exit(1)
 	}

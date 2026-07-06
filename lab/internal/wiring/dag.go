@@ -4,13 +4,16 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/solo-kingdom/uniface/lab/app/daghttp"
 	"github.com/solo-kingdom/uniface/lab/internal/dag"
 )
 
 // NewDAG 根据配置创建 DAG 运行时。
 // 当前 HttpUnit 通过 url 直连模式工作（resolver 注入为 nil）；
 // 业务进程可按需通过 dag.WithHTTPResolver 注入 balanceradapter 包装的 Balancer 解析器。
-func NewDAG(cfg DAGConfig) (*dag.Runtime, string, error) {
+//
+// cfg 是 lab/app/daghttp.Config 共享配置；本函数仅取 Store / FixturesDir 两字段。
+func NewDAG(cfg daghttp.Config) (*dag.Runtime, string, error) {
 	store := strings.ToLower(strings.TrimSpace(cfg.Store))
 	if store == "" {
 		store = "memory"
