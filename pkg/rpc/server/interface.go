@@ -19,6 +19,10 @@ type Request struct {
 	Path string
 	// Header 是请求头，键值对（HTTP 下为 map[string][]string 语义）。
 	Header map[string][]string
+	// Query 是 URL 查询参数（HTTP 下来自 r.URL.Query()；其它传输可留空）。
+	// 添加本字段以支持依赖 query 参数的端点（如 dagsignal 的 ?signal= 覆盖），
+	// 属向后兼容的增量字段：既有 handler 不读 Query 不受影响。
+	Query map[string][]string
 	// Body 是请求体原始字节。
 	Body []byte
 }

@@ -26,6 +26,13 @@ queue:
 dag:
   store: memory
 
+# lab-dag-signal 演示 WAIT + signal 异步编排：
+#   - 使用 lab/app/dagsignal/fixtures/graphs（自包含 approval 图）；
+#   - 通过 LAB_DAGSIGNAL_FIXTURES_DIR 覆盖；dagsignal 自治其配置段。
+dagsignal:
+  store: memory
+  fixtures_dir: app/dagsignal/fixtures/graphs
+
 services:
   kv: http://localhost:8081
   config: http://localhost:8082

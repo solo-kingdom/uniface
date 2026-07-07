@@ -138,6 +138,7 @@ func adapt(h rpcserver.Handler) http.HandlerFunc {
 			Method: r.Method,
 			Path:   r.URL.Path,
 			Header: r.Header,
+			Query:  r.URL.Query(),
 			Body:   body,
 		}
 		resp, err := h(r.Context(), req)

@@ -1,7 +1,8 @@
 .PHONY: mod build test tag clean proto \
 	lab-build lab-up lab-down \
 	$(foreach m,kv config lb queue dag ui,lab-build-$(m) lab-up-$(m) lab-down-$(m)) \
-	lab-build-dag-http lab-up-dag-http lab-down-dag-http
+	lab-build-dag-http lab-up-dag-http lab-down-dag-http \
+	lab-build-dag-signal lab-up-dag-signal lab-down-dag-signal
 
 # Module paths
 ROOT_MODULE := .
@@ -89,6 +90,16 @@ lab-up-dag-http:
 
 lab-down-dag-http:
 	$(MAKE) -C $(LAB_MODULE) down-daghttp
+
+# lab-dag-signal 按域转发（lab 模块注册键为 dagsignal，端口 8087）。
+lab-build-dag-signal:
+	$(MAKE) -C $(LAB_MODULE) build-dagsignal
+
+lab-up-dag-signal:
+	$(MAKE) -C $(LAB_MODULE) up-dagsignal
+
+lab-down-dag-signal:
+	$(MAKE) -C $(LAB_MODULE) down-dagsignal
 
 lab-build:
 	$(MAKE) -C $(LAB_MODULE) build $(LAB_MAKE_OPTS)

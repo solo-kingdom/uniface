@@ -6,7 +6,7 @@ empty :=
 space := $(empty) $(empty)
 
 # 域注册表：module -> binary, compose profiles（空表示无外部中间件）
-MODULES := kv config lb queue dag ui daghttp
+MODULES := kv config lb queue dag ui daghttp dagsignal
 
 MODULE_kv_BIN := lab-kv
 MODULE_kv_PROFILES := kv
@@ -31,6 +31,10 @@ MODULE_dag_PORT := 8085
 MODULE_daghttp_BIN := lab-dag-http
 MODULE_daghttp_PROFILES :=
 MODULE_daghttp_PORT := 8086
+
+MODULE_dagsignal_BIN := lab-dag-signal
+MODULE_dagsignal_PROFILES :=
+MODULE_dagsignal_PORT := 8087
 
 MODULE_ui_BIN := lab-ui
 MODULE_ui_PROFILES :=
